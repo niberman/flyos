@@ -1,0 +1,136 @@
+// ==========================================================================
+// Prisma Schema — FlyOS Flight School Management System
+// ==========================================================================
+// This schema defines the data layer for the FlyOS application. Prisma ORM
+// uses this file to:
+//   1. Generate the type-safe database client (@prisma/client).
+//   2. Create and run SQL migrations against the PostgreSQL database.
+//
+// In the MVC pattern, this schema represents the **Model** layer. Each model
+// below maps to a PostgreSQL table and defines the shape of the data that
+// flows through the Controller (NestJS Resolvers) and is presented to the
+// View (GraphQL API responses consumed by the client).
+// ==========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --------------------------------------------------------------------------
+// Enums
+// --------------------------------------------------------------------------
+
+/// Role determines the level of access a user has within the system.
+/// - STUDENT:    Can view schedules and create bookings for themselves.
+/// - INSTRUCTOR: Can manage bookings and view maintenance data.
+/// - DISPATCHER: Has full administrative access including aircraft management.
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  DISPATCHER
+}
+
+/// AirworthinessStatus indicates whether an aircraft is cleared for flight.
+/// - FLIGHT_READY: The aircraft has passed all checks and may be booked.
+/// - GROUNDED:     The aircraft has failed a safety check or maintenance
+///                 threshold and must not be booked until cleared.
+enum AirworthinessStatus {
+  FLIGHT_READY
+  GROUNDED
+}
+
+// --------------------------------------------------------------------------
+// Models
+// --------------------------------------------------------------------------
+
+/// User represents an authenticated individual in the system. The password
+/// hash is stored using bcrypt and is never exposed through the GraphQL API.
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(STUDENT)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // A user can have many flight bookings (one-to-many relationship).
+  bookings Booking[]
+
+  @@map("users")
+}
+
+/// Aircraft represents a physical airplane in the flight school's fleet.
+/// The airworthinessStatus field is automatically updated by the predictive
+/// maintenance engine when telemetry thresholds are violated.
+model Aircraft {
+  id                  String               @id @default(uuid())
+  tailNumber          String               @unique @map("tail_number")
+  make                String
+  model               String
+  airworthinessStatus AirworthinessStatus  @default(FLIGHT_READY) @map("airworthiness_status")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  // An aircraft can have many bookings, maintenance logs, and telemetry records.
+  bookings         Booking[]
+  maintenanceLogs  MaintenanceLog[]
+  telemetryRecords Telemetry[]
+
+  @@map("aircraft")
+}
+
+/// Booking represents a scheduled time block during which a user has reserved
+/// a specific aircraft. The scheduling service enforces two invariants:
+///   1. No overlapping bookings for the same aircraft.
+///   2. The aircraft must have a FLIGHT_READY status.
+model Booking {
+  id         String   @id @default(uuid())
+  startTime  DateTime @map("start_time")
+  endTime    DateTime @map("end_time")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Foreign keys establishing many-to-one relationships.
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id])
+
+  aircraftId String   @map("aircraft_id")
+  aircraft   Aircraft @relation(fields: [aircraftId], references: [id])
+
+  @@map("bookings")
+}
+
+/// MaintenanceLog stores batch-uploaded maintenance records for an aircraft.
+/// The `data` field is a JSONB column that holds the raw, unstructured batch
+/// log payload as received from the data ingestion endpoint.
+model MaintenanceLog {
+  id         String   @id @default(uuid())
+  timestamp  DateTime @default(now())
+  data       Json
+
+  aircraftId String   @map("aircraft_id")
+  aircraft   Aircraft @relation(fields: [aircraftId], references: [id])
+
+  @@map("maintenance_logs")
+}
+
+/// Telemetry stores time-series sensor data for an aircraft. The `data` field
+/// is a JSONB column containing raw sensor readings such as:
+///   - oilPressure (PSI)
+///   - cylinderHeadTemperature (degrees Fahrenheit)
+/// The predictive maintenance cron job scans these records to determine
+/// whether an aircraft should be grounded.
+model Telemetry {
+  id         String   @id @default(uuid())
+  timestamp  DateTime @default(now())
+  data       Json
+
+  aircraftId String   @map("aircraft_id")
+  aircraft   Aircraft @relation(fields: [aircraftId], references: [id])
+
+  @@map("telemetry")
+}

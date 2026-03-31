@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL Database Service
+  # --------------------------------------------------------------------------
+  # This service provisions a PostgreSQL 15 instance that serves as the
+  # primary relational data store for the FlyOS application. All application
+  # data — users, aircraft, bookings, maintenance logs, and telemetry — is
+  # persisted here via Prisma ORM.
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: flyos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flyos
+      POSTGRES_PASSWORD: flyos_secret
+      POSTGRES_DB: flyos
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U flyos']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------------
+  # NestJS Application Service
+  # --------------------------------------------------------------------------
+  # This service containerizes the NestJS backend. It depends on PostgreSQL
+  # being healthy before starting, ensuring the database is ready to accept
+  # connections when Prisma attempts to connect.
+  # --------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flyos-app
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://flyos:flyos_secret@postgres:5432/flyos?schema=public
+      JWT_SECRET: flyos-jwt-secret-change-in-production
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
