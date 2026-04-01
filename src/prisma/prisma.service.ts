@@ -1,52 +1,36 @@
 // ==========================================================================
 // PrismaService — Database Access Layer
 // ==========================================================================
-// This service wraps the Prisma Client and integrates it into the NestJS
-// dependency injection system. In the MVC architecture:
-//
-//   Model Layer: PrismaService IS the Model. It provides typed methods for
-//   every database table (User, Aircraft, Booking, etc.) and handles the
-//   connection lifecycle. All services (Controllers in MVC terms) inject
-//   this service to perform CRUD operations.
-//
-// Data Flow:
-//   GraphQL Resolver (Controller) → Service (Business Logic) → PrismaService
-//   (Model) → PostgreSQL Database
-//
-// By centralizing database access in a single injectable service, we ensure:
-//   - A single database connection pool shared across the application.
-//   - Consistent lifecycle management (connect on init, disconnect on destroy).
-//   - Easy mocking in unit tests by replacing this single provider.
+// Prisma 7 requires the client to be constructed with either a driver adapter
+// (here: @prisma/adapter-pg + DATABASE_URL) or an Accelerate URL — the URL
+// alone in prisma.config.ts is for migrations, not runtime client construction.
 // ==========================================================================
 
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
-/**
- * PrismaService extends the auto-generated PrismaClient and hooks into
- * NestJS module lifecycle events to manage the database connection.
- *
- * Implements OnModuleInit to connect when the module initializes, and
- * OnModuleDestroy to cleanly disconnect when the application shuts down.
- */
 @Injectable()
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  /**
-   * Called automatically by NestJS after the module is initialized.
-   * Establishes the connection to PostgreSQL via the DATABASE_URL
-   * environment variable configured in prisma.config.ts.
-   */
+  constructor(private readonly config: ConfigService) {
+    const databaseUrl = config.get<string>('DATABASE_URL')?.trim();
+    if (!databaseUrl) {
+      throw new Error(
+        'DATABASE_URL is missing or empty. Set it in your environment (e.g. .env).',
+      );
+    }
+    const adapter = new PrismaPg(databaseUrl);
+    super({ adapter });
+  }
+
   async onModuleInit() {
     await this.$connect();
   }
 
-  /**
-   * Called automatically by NestJS when the application is shutting down.
-   * Gracefully closes the database connection pool to prevent connection leaks.
-   */
   async onModuleDestroy() {
     await this.$disconnect();
   }

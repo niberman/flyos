@@ -20,11 +20,13 @@ const aircraft_module_1 = require("./aircraft/aircraft.module");
 const booking_module_1 = require("./booking/booking.module");
 const ingestion_module_1 = require("./ingestion/ingestion.module");
 const maintenance_module_1 = require("./maintenance/maintenance.module");
+const app_controller_1 = require("./app.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
+        controllers: [app_controller_1.AppController],
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
             graphql_1.GraphQLModule.forRoot({

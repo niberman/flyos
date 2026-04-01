@@ -1,0 +1,260 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+"""An aircraft in the flight school fleet."""
+type Aircraft {
+  """
+  Current airworthiness status. Automatically set to GROUNDED by the predictive maintenance engine when telemetry thresholds are violated.
+  """
+  airworthinessStatus: AirworthinessStatus!
+
+  """Timestamp when the aircraft record was created."""
+  createdAt: DateTime!
+
+  """Unique identifier (UUID) for the aircraft."""
+  id: ID!
+
+  """Aircraft manufacturer (e.g., Cessna, Piper)."""
+  make: String!
+
+  """Aircraft model (e.g., 172 Skyhawk, PA-28 Cherokee)."""
+  model: String!
+
+  """FAA tail number uniquely identifying the aircraft (e.g., N12345)."""
+  tailNumber: String!
+
+  """Timestamp of the last update to the aircraft record."""
+  updatedAt: DateTime!
+}
+
+"""Indicates whether an aircraft is cleared for flight operations."""
+enum AirworthinessStatus {
+  FLIGHT_READY
+  GROUNDED
+}
+
+"""Response returned after successful authentication."""
+type AuthResponse {
+  """Signed JWT token for authenticating subsequent requests."""
+  access_token: String!
+}
+
+"""Input for batch uploading maintenance log records."""
+input BatchMaintenanceInput {
+  """Array of maintenance log entries to ingest."""
+  entries: [MaintenanceLogEntry!]!
+}
+
+"""Input for batch uploading telemetry records."""
+input BatchTelemetryInput {
+  """Array of telemetry data entries to ingest."""
+  entries: [TelemetryEntry!]!
+}
+
+"""A scheduled flight booking for a user and aircraft."""
+type Booking {
+  """The aircraft reserved for this booking (populated via relation)."""
+  aircraft: Aircraft
+
+  """UUID of the booked aircraft."""
+  aircraftId: String!
+
+  """Timestamp when the booking was created."""
+  createdAt: DateTime!
+
+  """End time of the booked flight block."""
+  endTime: DateTime!
+
+  """Unique identifier (UUID) for the booking."""
+  id: ID!
+
+  """Start time of the booked flight block."""
+  startTime: DateTime!
+
+  """The user who owns this booking (populated via relation)."""
+  user: User
+
+  """UUID of the user who made the booking."""
+  userId: String!
+}
+
+"""Input for adding a new aircraft to the fleet."""
+input CreateAircraftInput {
+  """Aircraft manufacturer."""
+  make: String!
+
+  """Aircraft model designation."""
+  model: String!
+
+  """FAA tail number (e.g., N12345)."""
+  tailNumber: String!
+}
+
+"""Input for creating a new flight booking."""
+input CreateBookingInput {
+  """UUID of the aircraft to book."""
+  aircraftId: String!
+
+  """End time of the booking (ISO 8601 format)."""
+  endTime: DateTime!
+
+  """Start time of the booking (ISO 8601 format)."""
+  startTime: DateTime!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+"""Input for authenticating an existing user."""
+input LoginInput {
+  """Email address of the account."""
+  email: String!
+
+  """Account password."""
+  password: String!
+}
+
+"""A maintenance log entry linked to a specific aircraft."""
+type MaintenanceLog {
+  """UUID of the associated aircraft."""
+  aircraftId: String!
+
+  """Raw JSONB maintenance log data as received from batch upload."""
+  data: JSON!
+
+  """Unique identifier for the maintenance log."""
+  id: ID!
+
+  """Timestamp of the maintenance log entry."""
+  timestamp: DateTime!
+}
+
+"""A single maintenance log entry within a batch upload."""
+input MaintenanceLogEntry {
+  """UUID of the target aircraft."""
+  aircraftId: String!
+
+  """Raw maintenance log data (arbitrary JSON structure)."""
+  data: JSON!
+
+  """Timestamp of the log entry. Defaults to now if omitted."""
+  timestamp: DateTime
+}
+
+type Mutation {
+  """Add a new aircraft to the fleet. DISPATCHER only."""
+  createAircraft(input: CreateAircraftInput!): Aircraft!
+
+  """
+  Create a flight booking. Fails if aircraft is grounded or time conflicts exist.
+  """
+  createBooking(input: CreateBookingInput!): Booking!
+
+  """Batch upload maintenance log records. INSTRUCTOR and DISPATCHER only."""
+  ingestMaintenanceLogs(input: BatchMaintenanceInput!): [MaintenanceLog!]!
+
+  """Batch upload telemetry sensor data. INSTRUCTOR and DISPATCHER only."""
+  ingestTelemetry(input: BatchTelemetryInput!): [Telemetry!]!
+
+  """Authenticate with email and password to receive a JWT."""
+  login(input: LoginInput!): AuthResponse!
+
+  """Register a new user and receive a JWT access token."""
+  register(input: RegisterInput!): AuthResponse!
+
+  """Update aircraft airworthiness status. INSTRUCTOR and DISPATCHER only."""
+  updateAircraftStatus(id: String!, status: AirworthinessStatus!): Aircraft!
+}
+
+type Query {
+  """List all aircraft in the fleet."""
+  aircraft: [Aircraft!]!
+
+  """List all bookings. INSTRUCTOR and DISPATCHER only."""
+  bookings: [Booking!]!
+
+  """Get the profile of the currently authenticated user."""
+  me: User!
+
+  """List bookings for the currently authenticated user."""
+  myBookings: [Booking!]!
+
+  """List all users. Restricted to INSTRUCTOR and DISPATCHER."""
+  users: [User!]!
+}
+
+"""Input for registering a new user account."""
+input RegisterInput {
+  """Unique email address for the account."""
+  email: String!
+
+  """Password (minimum 8 characters)."""
+  password: String!
+
+  """Role assigned to the user. Defaults to STUDENT if not specified."""
+  role: Role = STUDENT
+}
+
+"""User role determining access level within the system."""
+enum Role {
+  DISPATCHER
+  INSTRUCTOR
+  STUDENT
+}
+
+"""A telemetry data point containing sensor readings for an aircraft."""
+type Telemetry {
+  """UUID of the associated aircraft."""
+  aircraftId: String!
+
+  """
+  Raw JSONB sensor data (e.g., { oilPressure: 45, cylinderHeadTemperature: 380 }).
+  """
+  data: JSON!
+
+  """Unique identifier for the telemetry record."""
+  id: ID!
+
+  """Timestamp when the sensor data was recorded."""
+  timestamp: DateTime!
+}
+
+"""A single telemetry data entry within a batch upload."""
+input TelemetryEntry {
+  """UUID of the target aircraft."""
+  aircraftId: String!
+
+  """
+  Raw sensor data (e.g., { oilPressure: 45, cylinderHeadTemperature: 380 }).
+  """
+  data: JSON!
+
+  """Timestamp of the sensor reading. Defaults to now if omitted."""
+  timestamp: DateTime
+}
+
+"""A registered user in the FlyOS system."""
+type User {
+  """Timestamp when the user was created."""
+  createdAt: DateTime!
+
+  """Email address of the user."""
+  email: String!
+
+  """Unique identifier (UUID) for the user."""
+  id: ID!
+
+  """Role determining the user's access level."""
+  role: Role!
+
+  """Timestamp of the last update to the user record."""
+  updatedAt: DateTime!
+}

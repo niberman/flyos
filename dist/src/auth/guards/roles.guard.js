@@ -29,6 +29,9 @@ let RolesGuard = class RolesGuard {
         }
         const ctx = graphql_1.GqlExecutionContext.create(context);
         const user = ctx.getContext().req.user;
+        if (!user?.role) {
+            return false;
+        }
         return requiredRoles.includes(user.role);
     }
 };

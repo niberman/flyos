@@ -24,10 +24,10 @@ export declare class BookingService {
     } & {
         id: string;
         createdAt: Date;
+        userId: string;
         aircraftId: string;
         startTime: Date;
         endTime: Date;
-        userId: string;
     }>;
     findAll(userId?: string): Promise<({
         user: {
@@ -50,10 +50,10 @@ export declare class BookingService {
     } & {
         id: string;
         createdAt: Date;
+        userId: string;
         aircraftId: string;
         startTime: Date;
         endTime: Date;
-        userId: string;
     })[]>;
     findById(id: string): Promise<({
         user: {
@@ -76,9 +76,9 @@ export declare class BookingService {
     } & {
         id: string;
         createdAt: Date;
+        userId: string;
         aircraftId: string;
         startTime: Date;
         endTime: Date;
-        userId: string;
     }) | null>;
 }

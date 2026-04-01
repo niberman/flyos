@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FlyOS demo (no styling)</title>
+  </head>
+  <body>
+    <h1>FlyOS GraphQL demo</h1>
+    <p>
+      Disposable UI for backend demos. Outside production, the API impersonates the first user in the DB (or
+      <code>FLYOS_DEV_USER_ID</code>); if the DB was empty at startup, a dev user is seeded automatically. Opt out
+      with <code>FLYOS_STRICT_AUTH=true</code>. Use the
+      <a href="/graphql">GraphQL playground</a> with a JWT when testing real auth.
+    </p>
+
+    <h2>Users</h2>
+    <p>
+      <button type="button" id="btn-me">Query me</button>
+      <button type="button" id="btn-users">Query users</button>
+    </p>
+
+    <h2>Aircraft</h2>
+    <p>
+      <button type="button" id="btn-aircraft">Query aircraft</button>
+    </p>
+    <form id="form-create-aircraft">
+      <fieldset>
+        <legend>createAircraft (DISPATCHER)</legend>
+        <label>tailNumber <input name="tailNumber" type="text" value="N99999" /></label>
+        <label>make <input name="make" type="text" value="Cessna" /></label>
+        <label>model <input name="model" type="text" value="172" /></label>
+        <button type="submit">Submit</button>
+      </fieldset>
+    </form>
+    <form id="form-update-aircraft-status">
+      <fieldset>
+        <legend>updateAircraftStatus (INSTRUCTOR / DISPATCHER)</legend>
+        <label>aircraft id <input name="id" type="text" placeholder="uuid" /></label>
+        <label
+          >status
+          <select name="status">
+            <option value="FLIGHT_READY">FLIGHT_READY</option>
+            <option value="GROUNDED">GROUNDED</option>
+          </select>
+        </label>
+        <button type="submit">Submit</button>
+      </fieldset>
+    </form>
+
+    <h2>Bookings</h2>
+    <p>
+      <button type="button" id="btn-bookings">Query bookings</button>
+      <button type="button" id="btn-my-bookings">Query myBookings</button>
+    </p>
+    <form id="form-create-booking">
+      <fieldset>
+        <legend>createBooking</legend>
+        <label>aircraftId <input name="aircraftId" type="text" placeholder="uuid" /></label>
+        <label>startTime (ISO) <input name="startTime" type="text" placeholder="2026-04-01T14:00:00.000Z" /></label>
+        <label>endTime (ISO) <input name="endTime" type="text" placeholder="2026-04-01T16:00:00.000Z" /></label>
+        <button type="submit">Submit</button>
+      </fieldset>
+    </form>
+
+    <h2>Ingestion</h2>
+    <form id="form-ingest-maintenance">
+      <fieldset>
+        <legend>ingestMaintenanceLogs</legend>
+        <label>aircraftId <input name="aircraftId" type="text" placeholder="uuid" /></label>
+        <label>data (JSON object) <textarea name="data" rows="4" cols="60">{"note":"demo maintenance"}</textarea></label>
+        <button type="submit">Submit</button>
+      </fieldset>
+    </form>
+    <form id="form-ingest-telemetry">
+      <fieldset>
+        <legend>ingestTelemetry</legend>
+        <label>aircraftId <input name="aircraftId" type="text" placeholder="uuid" /></label>
+        <label>data (JSON object)
+          <textarea name="data" rows="4" cols="60">{"oilPressure":45,"cylinderHeadTemperature":380}</textarea></label>
+        <button type="submit">Submit</button>
+      </fieldset>
+    </form>
+
+    <h2>Response</h2>
+    <pre id="output">(no request yet)</pre>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
