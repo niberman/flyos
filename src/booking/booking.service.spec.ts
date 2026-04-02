@@ -205,6 +205,28 @@ describe('BookingService', () => {
         orderBy: { startTime: 'asc' },
       });
     });
+
+    it('uses overlap filtering when both startDate and endDate are supplied', async () => {
+      const startDate = new Date('2026-06-01T10:00:00.000Z');
+      const endDate = new Date('2026-06-01T12:00:00.000Z');
+      mockPrisma.booking.findMany.mockResolvedValue([]);
+
+      await service.findByBase(organizationId, baseId, {
+        startDate,
+        endDate,
+      });
+
+      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
+        where: {
+          baseId,
+          base: { organizationId },
+          startTime: { lt: endDate },
+          endTime: { gt: startDate },
+        },
+        include: { user: true, aircraft: true, base: true },
+        orderBy: { startTime: 'asc' },
+      });
+    });
   });
 
   describe('findByAircraft', () => {
@@ -220,6 +242,40 @@ describe('BookingService', () => {
       expect(result).toEqual(rows);
       expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
         where: { aircraftId, base: { organizationId } },
+        include: { user: true, aircraft: true, base: true },
+        orderBy: { startTime: 'asc' },
+      });
+    });
+
+    it('supports an open-ended startDate filter', async () => {
+      const startDate = new Date('2026-06-01T10:00:00.000Z');
+      mockPrisma.booking.findMany.mockResolvedValue([]);
+
+      await service.findByAircraft(organizationId, aircraftId, { startDate });
+
+      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
+        where: {
+          aircraftId,
+          base: { organizationId },
+          startTime: { gte: startDate },
+        },
+        include: { user: true, aircraft: true, base: true },
+        orderBy: { startTime: 'asc' },
+      });
+    });
+
+    it('supports an open-ended endDate filter', async () => {
+      const endDate = new Date('2026-06-01T12:00:00.000Z');
+      mockPrisma.booking.findMany.mockResolvedValue([]);
+
+      await service.findByAircraft(organizationId, aircraftId, { endDate });
+
+      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
+        where: {
+          aircraftId,
+          base: { organizationId },
+          endTime: { lte: endDate },
+        },
         include: { user: true, aircraft: true, base: true },
         orderBy: { startTime: 'asc' },
       });
@@ -241,6 +297,42 @@ describe('BookingService', () => {
   });
 
   describe('cancelBooking', () => {
+    it('rejects cancellation when booking does not exist', async () => {
+      mockPrisma.booking.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.cancelBooking(
+          'missing-booking',
+          userId,
+          Role.STUDENT,
+          organizationId,
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockPrisma.booking.delete).not.toHaveBeenCalled();
+    });
+
+    it('rejects cancellation of bookings from another organization', async () => {
+      mockPrisma.booking.findUnique.mockResolvedValue({
+        id: 'booking-1',
+        userId,
+        base: { organizationId: 'other-org' },
+        user: {},
+        aircraft: {},
+      });
+
+      await expect(
+        service.cancelBooking(
+          'booking-1',
+          userId,
+          Role.DISPATCHER,
+          organizationId,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockPrisma.booking.delete).not.toHaveBeenCalled();
+    });
+
     it('allows the booking owner to cancel', async () => {
       const booking = {
         id: 'booking-1',

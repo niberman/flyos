@@ -268,15 +268,48 @@ npm run test:cov
 npm run test:e2e
 ```
 
-Tests mock `PrismaService` to validate business logic in isolation. Test suites exist for all database-interacting services:
+Tests mock `PrismaService` (and related collaborators) so services and GraphQL layers can be exercised without a live database.
 
-- `prisma.service.spec.ts` - Connection lifecycle, DATABASE_URL validation
-- `aircraft.service.spec.ts` - CRUD operations, status updates
-- `booking.service.spec.ts` - Airworthiness checks, overlap detection, booking creation
-- `ingestion.service.spec.ts` - Batch validation, transactional creation
-- `maintenance.service.spec.ts` - Threshold evaluation, grounding logic
-- `auth.service.spec.ts` - Registration, login, password hashing, JWT issuance
-- `users.service.spec.ts` - User lookup
+### Test execution flow
+
+Run the suites in this order when validating changes locally:
+
+1. `npm test -- --runInBand`
+2. `docker compose up -d postgres`
+3. `npm run test:e2e -- --runInBand`
+
+`test/app.e2e-spec.ts` is a self-contained smoke test for `GET /` and does not require PostgreSQL.
+
+`test/e2e/flyos.e2e-spec.ts` is the full integration suite. It expects:
+
+- `DATABASE_URL` to point at a reachable PostgreSQL instance
+- Prisma migrations to be runnable
+- Prisma seed data to be runnable
+
+If PostgreSQL is not reachable, the database-backed integration suite is skipped explicitly instead of failing with a late Prisma startup error. That keeps the smoke path useful while still making the infrastructure dependency obvious.
+
+**Services** — business logic in isolation:
+
+- `prisma.service.spec.ts` — Connection lifecycle, `DATABASE_URL` validation
+- `aircraft.service.spec.ts` — CRUD operations, status updates
+- `booking.service.spec.ts` — Airworthiness checks, overlap detection, booking creation
+- `ingestion.service.spec.ts` — Batch validation, transactional creation
+- `maintenance.service.spec.ts` — Threshold evaluation, grounding logic
+- `auth.service.spec.ts` — Registration, login, password hashing, JWT issuance
+- `users.service.spec.ts` — User lookup
+
+**Resolvers and HTTP** — delegation to services; guards are stubbed where needed so Nest does not instantiate real `JwtAuthGuard` dependencies (e.g. `UsersResolver` uses `Test.createTestingModule(...).overrideGuard(JwtAuthGuard).useValue(...)`):
+
+- `*.resolver.spec.ts` under `auth/`, `users/`, `aircraft/`, `booking/`, `ingestion/`, and `maintenance/`
+- `app.controller.spec.ts` — Root demo route
+
+**Auth, tenancy, and maintenance config** — pure guards and helpers:
+
+- `auth/guards/roles.guard.spec.ts` — RBAC metadata vs `req.user.role`
+- `auth/dev-auth.config.spec.ts` — Dev auth bypass env rules
+- `prisma/tenant.context.spec.ts` — Per-request tenant id via `AsyncLocalStorage`
+- `prisma/tenant.middleware.spec.ts` — Prisma extension injects `organizationId` / base scoping (with `defineExtension` mocked for direct handler tests)
+- `maintenance/thresholds.config.spec.ts` — Telemetry threshold evaluation
 
 ## Project Structure
 

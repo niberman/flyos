@@ -11,7 +11,15 @@
 // ==========================================================================
 
 import { InputType, Field } from '@nestjs/graphql';
-import { IsUUID, IsOptional, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  Allow,
+  IsArray,
+  IsDate,
+  IsOptional,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 import { GraphQLJSON } from 'graphql-type-json';
 
 @InputType({
@@ -28,13 +36,17 @@ export class TelemetryEntry {
     description: 'Timestamp of the sensor reading. Defaults to now if omitted.',
   })
   @IsOptional()
-  @IsDateString()
+  @Type(() => Date)
+  @IsDate()
   timestamp?: Date;
 
   @Field(() => GraphQLJSON, {
     description:
       'Raw sensor data (e.g., { oilPressure: 45, cylinderHeadTemperature: 380 }).',
   })
+  // JSON payloads are intentionally open-ended, so whitelist validation needs
+  // an explicit allow-list signal instead of rejecting the property outright.
+  @Allow()
   data: any;
 }
 
@@ -43,5 +55,8 @@ export class BatchTelemetryInput {
   @Field(() => [TelemetryEntry], {
     description: 'Array of telemetry data entries to ingest.',
   })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TelemetryEntry)
   entries: TelemetryEntry[];
 }

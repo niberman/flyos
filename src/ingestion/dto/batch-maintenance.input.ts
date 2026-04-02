@@ -8,7 +8,15 @@
 // ==========================================================================
 
 import { InputType, Field } from '@nestjs/graphql';
-import { IsUUID, IsOptional, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  Allow,
+  IsArray,
+  IsDate,
+  IsOptional,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 import { GraphQLJSON } from 'graphql-type-json';
 
 @InputType({
@@ -25,12 +33,14 @@ export class MaintenanceLogEntry {
     description: 'Timestamp of the log entry. Defaults to now if omitted.',
   })
   @IsOptional()
-  @IsDateString()
+  @Type(() => Date)
+  @IsDate()
   timestamp?: Date;
 
   @Field(() => GraphQLJSON, {
     description: 'Raw maintenance log data (arbitrary JSON structure).',
   })
+  @Allow()
   data: any;
 }
 
@@ -39,5 +49,8 @@ export class BatchMaintenanceInput {
   @Field(() => [MaintenanceLogEntry], {
     description: 'Array of maintenance log entries to ingest.',
   })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MaintenanceLogEntry)
   entries: MaintenanceLogEntry[];
 }

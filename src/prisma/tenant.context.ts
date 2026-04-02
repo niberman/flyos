@@ -1,3 +1,18 @@
+// ==========================================================================
+// Tenant Context — Request-Scoped Organization/Base Identity
+// ==========================================================================
+// FlyOS enforces multi-tenant isolation in two cooperating layers:
+//
+//   1. AsyncLocalStorage keeps the active organization/base available across
+//      async boundaries so the Prisma extension can read it during queries.
+//   2. TenantContext gives request-scoped Nest providers a convenient place to
+//      set and read the same values inside guards, resolvers, and services.
+//
+// The service intentionally falls back between AsyncLocalStorage and private
+// fields because some code paths set tenant data before ALS exists, while
+// others run fully inside an established async context.
+// ==========================================================================
+
 import { AsyncLocalStorage } from 'async_hooks';
 import { Injectable, Scope } from '@nestjs/common';
 
@@ -37,18 +52,25 @@ export class TenantContext {
   private _baseId: string | null = null;
 
   get organizationId(): string | null {
+    // Prefer the async context when present so nested awaits keep using the
+    // request-scoped organization even if this instance was constructed earlier.
     return (
       tenantStorage.getStore()?.organizationId ?? this._organizationId
     );
   }
 
   get baseId(): string | null {
+    // Base follows the same lookup rules as organizationId. This allows base
+    // filters to remain request-local while still supporting unit tests that
+    // instantiate TenantContext directly without AsyncLocalStorage.
     return tenantStorage.getStore()?.baseId ?? this._baseId;
   }
 
   setOrganization(organizationId: string): void {
     this._organizationId = organizationId;
     const prev = tenantStorage.getStore();
+    // Preserve any previously-known base when the organization is rebound so
+    // downstream code can continue to use both values in the same request.
     tenantStorage.enterWith({
       organizationId,
       baseId: prev?.baseId ?? this._baseId ?? undefined,
@@ -60,6 +82,8 @@ export class TenantContext {
     const org =
       tenantStorage.getStore()?.organizationId ?? this._organizationId;
     if (!org) {
+      // Without an organization there is nothing meaningful to publish to the
+      // async context yet, so keep only the local fallback field updated.
       return;
     }
     tenantStorage.enterWith({

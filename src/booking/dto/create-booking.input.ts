@@ -8,7 +8,8 @@
 // ==========================================================================
 
 import { InputType, Field, ID } from '@nestjs/graphql';
-import { IsUUID, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsUUID, IsDate } from 'class-validator';
 
 @InputType({ description: 'Input for creating a new flight booking.' })
 export class CreateBookingInput {
@@ -23,12 +24,16 @@ export class CreateBookingInput {
   @Field(() => Date, {
     description: 'Start time of the booking (ISO 8601 format).',
   })
-  @IsDateString()
+  // GraphQL DateTime values arrive as Date objects by the time class-validator
+  // runs, so validate the transformed object rather than the raw input string.
+  @Type(() => Date)
+  @IsDate()
   startTime: Date;
 
   @Field(() => Date, {
     description: 'End time of the booking (ISO 8601 format).',
   })
-  @IsDateString()
+  @Type(() => Date)
+  @IsDate()
   endTime: Date;
 }

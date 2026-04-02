@@ -1,3 +1,19 @@
+// ==========================================================================
+// Tenant Extension — Prisma Query Rewriting for Multi-Tenant Isolation
+// ==========================================================================
+// This file implements the actual query-shaping rules that keep one
+// organization from seeing or mutating another organization's data.
+//
+// Model categories:
+//   - Directly scoped models carry `organizationId` on the row itself.
+//   - Base-scoped models inherit tenancy through their related Base row.
+//   - Organization is intentionally excluded because it is the tenant root.
+//
+// The extension is conservative: it augments read/update/delete filters and
+// injects organizationId on creates where the model owns that column, while
+// leaving special auth lookups like `User.findUnique({ email })` untouched.
+// ==========================================================================
+
 import { Prisma } from '@prisma/client';
 
 /**
@@ -43,6 +59,8 @@ function mergeWhere(
   if (!existing || Object.keys(existing).length === 0) {
     return tenantClause;
   }
+  // Keep the caller's original predicate intact and layer tenant scoping on
+  // top of it. AND avoids accidentally overwriting user-supplied filters.
   return { AND: [existing, tenantClause] };
 }
 
@@ -94,6 +112,8 @@ export function createTenantExtension(
 
           if (BASE_SCOPED_MODELS.has(model!)) {
             if (FILTERED_ACTIONS.has(operation)) {
+              // Bookings and UserBase rows do not have organizationId, so
+              // tenant isolation must flow through their related base.
               const tenantClause = { base: { organizationId } };
               args.where = mergeWhere(
                 args.where as Record<string, unknown> | undefined,
@@ -115,12 +135,16 @@ export function createTenantExtension(
           }
 
           if (operation === 'create') {
+            // Directly-scoped models should never rely on callers to remember
+            // organizationId; the extension writes it centrally.
             args.data = { ...args.data, organizationId };
           }
 
           if (operation === 'createMany') {
             const data = args.data;
             if (Array.isArray(data)) {
+              // Apply the same guarantee across batch inserts so every row is
+              // tagged with the active tenant before Prisma executes SQL.
               args.data = data.map((record: Record<string, unknown>) => ({
                 ...record,
                 organizationId,

@@ -111,6 +111,49 @@ describe('AuthService', () => {
       });
     });
 
+    it('throws BadRequestException when organizationId does not exist', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-pw');
+      mockPrisma.organization.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.register({
+          ...baseInput,
+          organizationId: 'missing-org',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.register({
+          ...baseInput,
+          organizationId: 'missing-org',
+        }),
+      ).rejects.toThrow('Organization not found');
+    });
+
+    it('throws BadRequestException when existing organization has no base', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-pw');
+      mockPrisma.organization.findUnique.mockResolvedValue({
+        id: 'org-1',
+        bases: [],
+      });
+
+      await expect(
+        service.register({
+          ...baseInput,
+          organizationId: 'org-1',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.register({
+          ...baseInput,
+          organizationId: 'org-1',
+        }),
+      ).rejects.toThrow(
+        'Organization has no base. Add a base before inviting users.',
+      );
+    });
+
     it('registering with organizationName creates org, base, user, and UserBase', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.organization.findUnique.mockResolvedValue(null);
@@ -154,6 +197,51 @@ describe('AuthService', () => {
       expect(result).toEqual({
         access_token: 'signed-token',
         organizationId: 'org-created',
+      });
+    });
+
+    it('increments the organization slug when the base slug already exists', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-pw');
+      mockPrisma.organization.findUnique
+        .mockResolvedValueOnce({ id: 'org-existing' })
+        .mockResolvedValueOnce(null);
+
+      const createOrganization = jest
+        .fn()
+        .mockResolvedValue({ id: 'org-created' });
+      const createBase = jest.fn().mockResolvedValue({ id: 'base-created' });
+      const createUser = jest
+        .fn()
+        .mockResolvedValue({ id: 'user-created', role: Role.STUDENT });
+      const createUserBase = jest.fn().mockResolvedValue({});
+
+      mockPrisma.$transaction.mockImplementation(
+        async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({
+            organization: { create: createOrganization },
+            base: { create: createBase },
+            user: { create: createUser },
+            userBase: { create: createUserBase },
+          }),
+      );
+
+      await service.register({
+        ...baseInput,
+        organizationName: 'Acme Flight School',
+      });
+
+      expect(mockPrisma.organization.findUnique).toHaveBeenNthCalledWith(1, {
+        where: { slug: 'acme-flight-school' },
+      });
+      expect(mockPrisma.organization.findUnique).toHaveBeenNthCalledWith(2, {
+        where: { slug: 'acme-flight-school-1' },
+      });
+      expect(createOrganization).toHaveBeenCalledWith({
+        data: {
+          name: 'Acme Flight School',
+          slug: 'acme-flight-school-1',
+        },
       });
     });
 

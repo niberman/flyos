@@ -7,6 +7,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -19,6 +20,100 @@ import { AppModule } from '../../src/app.module';
 import { MaintenanceService } from '../../src/maintenance/maintenance.service';
 
 const repoRoot = path.join(__dirname, '../..');
+
+type DatabasePrerequisite =
+  | { ok: true; url: string }
+  | { ok: false; reason: string };
+
+function resolveDatabaseUrl(): string | null {
+  const envUrl = process.env.DATABASE_URL?.trim();
+  if (envUrl) {
+    return envUrl;
+  }
+
+  const envPath = path.join(repoRoot, '.env');
+  if (!fs.existsSync(envPath)) {
+    return null;
+  }
+
+  const envFile = fs.readFileSync(envPath, 'utf8');
+  const match = envFile.match(/^\s*DATABASE_URL\s*=\s*(.+)\s*$/m);
+  if (!match) {
+    // Fall back to the repository's local docker-compose defaults so the
+    // integration suite can run in a clean checkout after `docker compose up`.
+    return 'postgresql://flyos:flyos_secret@localhost:5432/flyos?schema=public';
+  }
+
+  return match[1].trim().replace(/^['"]|['"]$/g, '');
+}
+
+function resolveDatabasePrerequisite(): DatabasePrerequisite {
+  const url = resolveDatabaseUrl();
+  if (!url) {
+    return {
+      ok: false,
+      reason:
+        'DATABASE_URL is not set. Add it to the environment or .env before running the database-backed e2e suite.',
+    };
+  }
+
+  let host = 'localhost';
+  let port = 5432;
+
+  try {
+    const parsed = new URL(url);
+    host = parsed.hostname || host;
+    port = Number(parsed.port || port);
+  } catch {
+    return {
+      ok: false,
+      reason:
+        'DATABASE_URL is present but could not be parsed as a PostgreSQL connection string.',
+    };
+  }
+
+  try {
+    // Probe the TCP endpoint up front so the suite reports a clean skip when
+    // Postgres is simply not running, instead of failing deep inside Prisma.
+    execFileSync(
+      process.execPath,
+      [
+        '-e',
+        [
+          'const net = require("node:net");',
+          'const host = process.argv[1];',
+          'const port = Number(process.argv[2]);',
+          'const socket = net.createConnection({ host, port });',
+          'socket.setTimeout(1000);',
+          'socket.once("connect", () => { socket.end(); process.exit(0); });',
+          'socket.once("timeout", () => { socket.destroy(); process.exit(2); });',
+          'socket.once("error", () => process.exit(3));',
+        ].join(' '),
+        host,
+        String(port),
+      ],
+      { stdio: 'ignore', timeout: 2000 },
+    );
+  } catch {
+    return {
+      ok: false,
+      reason: `PostgreSQL is not reachable at ${host}:${port}. Start it with "docker compose up -d postgres".`,
+    };
+  }
+
+  process.env.DATABASE_URL = url;
+  return { ok: true, url };
+}
+
+const databasePrerequisite = resolveDatabasePrerequisite();
+const describeDatabaseE2E = databasePrerequisite.ok ? describe : describe.skip;
+
+if (!databasePrerequisite.ok) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[test:e2e] Skipping FlyOS API integration suite: ${databasePrerequisite.reason}`,
+  );
+}
 
 function decodeJwtPayload(token: string): {
   sub: string;
@@ -44,7 +139,7 @@ function tomorrowIsoUtc(hour: number, minute = 0): string {
   return d.toISOString();
 }
 
-describe('FlyOS API (e2e)', () => {
+describeDatabaseE2E('FlyOS API (e2e)', () => {
   let app: INestApplication<App>;
   let maintenanceService: MaintenanceService;
   let adminPrisma: PrismaClient;
@@ -83,12 +178,6 @@ describe('FlyOS API (e2e)', () => {
   }
 
   beforeAll(async () => {
-    if (!process.env.DATABASE_URL?.trim()) {
-      throw new Error(
-        'DATABASE_URL must be set for e2e tests (PostgreSQL connection string).',
-      );
-    }
-
     process.env.FLYOS_STRICT_AUTH = 'true';
     if (!process.env.JWT_SECRET?.trim()) {
       process.env.JWT_SECRET = 'e2e-test-jwt-secret';

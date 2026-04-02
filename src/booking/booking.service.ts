@@ -1,6 +1,20 @@
 // ==========================================================================
 // BookingService — Business Logic for Flight Scheduling
 // ==========================================================================
+// This service is responsible for the application's most constraint-heavy
+// workflow: creating, querying, and canceling aircraft bookings while keeping
+// organization boundaries and scheduling rules intact.
+//
+// The main invariants enforced here are:
+//   1. The aircraft must exist and belong to the caller's organization.
+//   2. The aircraft must still be airworthy.
+//   3. The requested time block must not overlap another booking.
+//   4. The requested operating base must belong to the same organization.
+//   5. Booking cancellation is limited to the owner or a dispatcher.
+//
+// This file also publishes `bookingUpdated` events so GraphQL subscriptions
+// can reflect create/cancel changes in real time.
+// ==========================================================================
 
 import {
   Injectable,
@@ -27,6 +41,14 @@ export class BookingService {
   ) {}
 
   private buildDateRangeWhere(range?: BookingDateRange) {
+    // The helper supports three useful query modes:
+    //   - bounded overlap window (start + end)
+    //   - lower-bound only
+    //   - upper-bound only
+    //
+    // When both dates are present we use overlap semantics instead of simple
+    // containment, which matches how flight scheduling UIs usually answer
+    // "what bookings intersect this displayed window?".
     if (!range?.startDate && !range?.endDate) {
       return {};
     }
@@ -49,6 +71,8 @@ export class BookingService {
   ) {
     const organizationId = booking.base?.organizationId;
     if (!organizationId) {
+      // Subscription routing is organization-specific. If the caller omitted
+      // the base relation there is no safe audience to publish to.
       return;
     }
     await this.pubSub.publish('bookingUpdated', {
@@ -56,6 +80,10 @@ export class BookingService {
     });
   }
 
+  /**
+   * Creates a booking after validating aircraft ownership, airworthiness,
+   * time-window conflicts, and base ownership.
+   */
   async createBooking(
     userId: string,
     organizationId: string,
@@ -87,6 +115,12 @@ export class BookingService {
     const overlappingBooking = await this.prisma.booking.findFirst({
       where: {
         aircraftId: input.aircraftId,
+        // Standard overlap predicate:
+        //   existing.start < requested.end
+        //   AND existing.end > requested.start
+        //
+        // This blocks exact intersections while still allowing adjacent
+        // back-to-back bookings where one ends exactly when the next begins.
         startTime: { lt: new Date(input.endTime) },
         endTime: { gt: new Date(input.startTime) },
       },
@@ -147,6 +181,8 @@ export class BookingService {
     baseId: string,
     dateRange?: BookingDateRange,
   ) {
+    // Base queries are used by dispatch-style views where a user is looking at
+    // a single airport/base timeline and optionally narrowing it to a window.
     return this.prisma.booking.findMany({
       where: {
         baseId,
@@ -163,6 +199,8 @@ export class BookingService {
     aircraftId: string,
     dateRange?: BookingDateRange,
   ) {
+    // Aircraft-specific queries are useful for utilization and maintenance
+    // review, especially when an aircraft can operate at more than one base.
     return this.prisma.booking.findMany({
       where: {
         aircraftId,
@@ -212,6 +250,8 @@ export class BookingService {
       throw new BadRequestException(`Booking with ID "${bookingId}" not found.`);
     }
 
+    // Cross-organization access is rejected before ownership checks so users
+    // never learn whether a foreign booking belongs to a student or dispatcher.
     if (booking.base.organizationId !== organizationId) {
       throw new ForbiddenException('You cannot cancel this booking.');
     }
@@ -223,6 +263,8 @@ export class BookingService {
       throw new ForbiddenException('You cannot cancel this booking.');
     }
 
+    // Delete first, then publish the full original booking payload so
+    // subscribers can remove it from their local state.
     await this.prisma.booking.delete({
       where: { id: bookingId },
     });

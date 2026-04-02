@@ -12,6 +12,12 @@ type Aircraft {
   """Timestamp when the aircraft record was created."""
   createdAt: DateTime!
 
+  """The aircraft home base."""
+  homeBase: Base!
+
+  """UUID of the default home base for this aircraft."""
+  homeBaseId: ID!
+
   """Unique identifier (UUID) for the aircraft."""
   id: ID!
 
@@ -20,6 +26,9 @@ type Aircraft {
 
   """Aircraft model (e.g., 172 Skyhawk, PA-28 Cherokee)."""
   model: String!
+
+  """UUID of the organization this aircraft belongs to."""
+  organizationId: ID!
 
   """FAA tail number uniquely identifying the aircraft (e.g., N12345)."""
   tailNumber: String!
@@ -34,10 +43,60 @@ enum AirworthinessStatus {
   GROUNDED
 }
 
+"""
+A telemetry threshold violation for an aircraft, for operator visibility.
+"""
+type Alert {
+  """Aircraft that recorded the violation."""
+  aircraftId: ID!
+
+  """Tail number of the aircraft."""
+  aircraftTailNumber: String!
+
+  """Sensor parameter that violated a threshold."""
+  parameter: String!
+
+  """Threshold limit that was exceeded (min or max as applicable)."""
+  threshold: Float!
+
+  """Telemetry record timestamp."""
+  timestamp: DateTime!
+
+  """Recorded sensor value."""
+  value: Float!
+}
+
 """Response returned after successful authentication."""
 type AuthResponse {
   """Signed JWT token for authenticating subsequent requests."""
   access_token: String!
+
+  """UUID of the organization the authenticated user belongs to."""
+  organizationId: String!
+}
+
+"""A physical airport or flight base operated by an organization."""
+type Base {
+  """Timestamp when the base was created."""
+  createdAt: DateTime!
+
+  """ICAO airport code (e.g., KAPA, KBJC)."""
+  icaoCode: String!
+
+  """Unique identifier (UUID) for the base."""
+  id: ID!
+
+  """Name of the base."""
+  name: String!
+
+  """UUID of the organization this base belongs to."""
+  organizationId: String!
+
+  """IANA timezone identifier (e.g., America/Denver)."""
+  timezone: String!
+
+  """Timestamp of the last update to the base record."""
+  updatedAt: DateTime!
 }
 
 """Input for batch uploading maintenance log records."""
@@ -60,6 +119,12 @@ type Booking {
   """UUID of the booked aircraft."""
   aircraftId: String!
 
+  """The base where this flight originates (populated via relation)."""
+  base: Base
+
+  """UUID of the base where the flight originates."""
+  baseId: ID!
+
   """Timestamp when the booking was created."""
   createdAt: DateTime!
 
@@ -81,6 +146,9 @@ type Booking {
 
 """Input for adding a new aircraft to the fleet."""
 input CreateAircraftInput {
+  """UUID of the default home base (must belong to your organization)."""
+  homeBaseId: ID!
+
   """Aircraft manufacturer."""
   make: String!
 
@@ -94,7 +162,10 @@ input CreateAircraftInput {
 """Input for creating a new flight booking."""
 input CreateBookingInput {
   """UUID of the aircraft to book."""
-  aircraftId: String!
+  aircraftId: ID!
+
+  """UUID of the base where the flight originates."""
+  baseId: ID!
 
   """End time of the booking (ISO 8601 format)."""
   endTime: DateTime!
@@ -137,7 +208,9 @@ type MaintenanceLog {
   timestamp: DateTime!
 }
 
-"""A single maintenance log entry within a batch upload."""
+"""
+A single maintenance log entry within a batch upload. Aircraft must belong to the caller organization.
+"""
 input MaintenanceLogEntry {
   """UUID of the target aircraft."""
   aircraftId: String!
@@ -150,6 +223,11 @@ input MaintenanceLogEntry {
 }
 
 type Mutation {
+  """
+  Cancel a booking. Allowed for the booking owner or any DISPATCHER in the same organization.
+  """
+  cancelBooking(bookingId: String!): Boolean!
+
   """Add a new aircraft to the fleet. DISPATCHER only."""
   createAircraft(input: CreateAircraftInput!): Aircraft!
 
@@ -158,10 +236,14 @@ type Mutation {
   """
   createBooking(input: CreateBookingInput!): Booking!
 
-  """Batch upload maintenance log records. INSTRUCTOR and DISPATCHER only."""
+  """
+  Batch upload maintenance log records. INSTRUCTOR and DISPATCHER only. Scoped to your organization.
+  """
   ingestMaintenanceLogs(input: BatchMaintenanceInput!): [MaintenanceLog!]!
 
-  """Batch upload telemetry sensor data. INSTRUCTOR and DISPATCHER only."""
+  """
+  Batch upload telemetry sensor data. INSTRUCTOR and DISPATCHER only. Scoped to your organization.
+  """
   ingestTelemetry(input: BatchTelemetryInput!): [Telemetry!]!
 
   """Authenticate with email and password to receive a JWT."""
@@ -171,21 +253,37 @@ type Mutation {
   register(input: RegisterInput!): AuthResponse!
 
   """Update aircraft airworthiness status. INSTRUCTOR and DISPATCHER only."""
-  updateAircraftStatus(id: String!, status: AirworthinessStatus!): Aircraft!
+  updateAircraftStatus(id: ID!, status: AirworthinessStatus!): Aircraft!
 }
 
 type Query {
   """List all aircraft in the fleet."""
-  aircraft: [Aircraft!]!
+  aircraft(baseId: ID): [Aircraft!]!
 
-  """List all bookings. INSTRUCTOR and DISPATCHER only."""
-  bookings: [Booking!]!
+  """
+  List aircraft at a base: home-based there or with a booking at that base.
+  """
+  aircraftByBase(baseId: ID!): [Aircraft!]!
+
+  """
+  Telemetry threshold violations for the current organization. Defaults to the last 24 hours.
+  """
+  alertHistory(aircraftId: ID, hours: Int = 24): [Alert!]!
+
+  """List all bookings in the organization. INSTRUCTOR and DISPATCHER only."""
+  bookings(baseId: String): [Booking!]!
+
+  """Bookings for a specific aircraft, optionally filtered by date range."""
+  bookingsByAircraft(aircraftId: String!, endDate: DateTime, startDate: DateTime): [Booking!]!
+
+  """Bookings at a specific base, optionally filtered by date range."""
+  bookingsByBase(baseId: String!, endDate: DateTime, startDate: DateTime): [Booking!]!
 
   """Get the profile of the currently authenticated user."""
   me: User!
 
   """List bookings for the currently authenticated user."""
-  myBookings: [Booking!]!
+  myBookings(baseId: String): [Booking!]!
 
   """List all users. Restricted to INSTRUCTOR and DISPATCHER."""
   users: [User!]!
@@ -195,6 +293,16 @@ type Query {
 input RegisterInput {
   """Unique email address for the account."""
   email: String!
+
+  """
+  UUID of an existing organization. If set, the user joins this org (no new org is created).
+  """
+  organizationId: String
+
+  """
+  Name for a new organization. Ignored if organizationId is provided. Creates org, default base, and assigns the user.
+  """
+  organizationName: String
 
   """Password (minimum 8 characters)."""
   password: String!
@@ -208,6 +316,10 @@ enum Role {
   DISPATCHER
   INSTRUCTOR
   STUDENT
+}
+
+type Subscription {
+  bookingUpdated: Booking!
 }
 
 """A telemetry data point containing sensor readings for an aircraft."""
@@ -227,7 +339,9 @@ type Telemetry {
   timestamp: DateTime!
 }
 
-"""A single telemetry data entry within a batch upload."""
+"""
+A single telemetry data entry within a batch upload. Aircraft must belong to the caller organization.
+"""
 input TelemetryEntry {
   """UUID of the target aircraft."""
   aircraftId: String!
@@ -251,6 +365,9 @@ type User {
 
   """Unique identifier (UUID) for the user."""
   id: ID!
+
+  """UUID of the organization this user belongs to."""
+  organizationId: String!
 
   """Role determining the user's access level."""
   role: Role!

@@ -8,7 +8,7 @@
 
 import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
 import { AirworthinessStatus } from '@prisma/client';
-import { BaseType } from './base.type';
+import { BaseType } from '../base/base.type';
 
 // Register the Prisma AirworthinessStatus enum with GraphQL so it can be
 // used as a field type and input argument in the schema.
