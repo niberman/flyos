@@ -9,6 +9,13 @@ const DIRECTLY_SCOPED_MODELS = new Set([
     'Aircraft',
     'MaintenanceLog',
     'Telemetry',
+    'SchedulableResource',
+    'Squawk',
+    'BookingParticipant',
+    'PilotMedical',
+    'PilotCertificate',
+    'FlightReviewRecord',
+    'AircraftCheckout',
 ]);
 const BASE_SCOPED_MODELS = new Set([
     'Booking',
@@ -43,6 +50,7 @@ function createTenantExtension(getOrganizationId) {
                     if (!organizationId) {
                         return query(args);
                     }
+                    const op = args;
                     if (model === 'Organization') {
                         return query(args);
                     }
@@ -52,7 +60,7 @@ function createTenantExtension(getOrganizationId) {
                             return query(args);
                         }
                         if (operation === 'upsert') {
-                            const nextArgs = { ...args };
+                            const nextArgs = { ...op };
                             if (nextArgs.create) {
                                 nextArgs.create = {
                                     ...nextArgs.create,
@@ -65,35 +73,38 @@ function createTenantExtension(getOrganizationId) {
                     if (BASE_SCOPED_MODELS.has(model)) {
                         if (FILTERED_ACTIONS.has(operation)) {
                             const tenantClause = { base: { organizationId } };
-                            args.where = mergeWhere(args.where, tenantClause);
+                            op.where = mergeWhere(op.where, tenantClause);
                         }
-                        return query(args);
+                        return query(op);
                     }
                     if (!DIRECTLY_SCOPED_MODELS.has(model)) {
                         return query(args);
                     }
                     if (FILTERED_ACTIONS.has(operation)) {
-                        args.where = mergeWhere(args.where, { organizationId });
+                        op.where = mergeWhere(op.where, { organizationId });
                     }
                     if (operation === 'create') {
-                        args.data = { ...args.data, organizationId };
+                        op.data = { ...op.data, organizationId };
                     }
                     if (operation === 'createMany') {
-                        const data = args.data;
+                        const data = op.data;
                         if (Array.isArray(data)) {
-                            args.data = data.map((record) => ({
+                            op.data = data.map((record) => ({
                                 ...record,
                                 organizationId,
                             }));
                         }
                     }
                     if (operation === 'upsert') {
-                        args.where = mergeWhere(args.where, { organizationId });
-                        if (args.create) {
-                            args.create = { ...args.create, organizationId };
+                        op.where = mergeWhere(op.where, { organizationId });
+                        if (op.create) {
+                            op.create = {
+                                ...op.create,
+                                organizationId,
+                            };
                         }
                     }
-                    return query(args);
+                    return query(op);
                 },
             },
         },

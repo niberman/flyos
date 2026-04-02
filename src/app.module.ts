@@ -36,6 +36,8 @@ import { AircraftModule } from './aircraft/aircraft.module';
 import { BookingModule } from './booking/booking.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
+import { PilotComplianceModule } from './pilot-compliance/pilot-compliance.module';
+import { SquawkModule } from './squawk/squawk.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -74,6 +76,8 @@ import { AppController } from './app.controller';
     BookingModule,
     IngestionModule,
     MaintenanceModule,
+    PilotComplianceModule,
+    SquawkModule,
   ],
 })
 export class AppModule {}

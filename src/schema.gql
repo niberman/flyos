@@ -11,6 +11,7 @@ type Aircraft {
 
   """Timestamp when the aircraft record was created."""
   createdAt: DateTime!
+  hobbsHours: Float!
 
   """The aircraft home base."""
   homeBase: Base!
@@ -29,12 +30,20 @@ type Aircraft {
 
   """UUID of the organization this aircraft belongs to."""
   organizationId: ID!
+  tachHours: Float!
 
   """FAA tail number uniquely identifying the aircraft (e.g., N12345)."""
   tailNumber: String!
 
   """Timestamp of the last update to the aircraft record."""
   updatedAt: DateTime!
+}
+
+type AircraftCheckout {
+  aircraftId: ID!
+  expiresAt: DateTime!
+  id: ID!
+  userId: ID!
 }
 
 """Indicates whether an aircraft is cleared for flight operations."""
@@ -111,37 +120,83 @@ input BatchTelemetryInput {
   entries: [TelemetryEntry!]!
 }
 
-"""A scheduled flight booking for a user and aircraft."""
+"""A scheduled reservation for a schedulable resource at a base."""
 type Booking {
-  """The aircraft reserved for this booking (populated via relation)."""
+  """The aircraft when this booking targets an aircraft resource."""
   aircraft: Aircraft
+  aircraftId: String
 
-  """UUID of the booked aircraft."""
-  aircraftId: String!
-
-  """The base where this flight originates (populated via relation)."""
+  """The base where this booking occurs (populated via relation)."""
   base: Base
 
-  """UUID of the base where the flight originates."""
+  """UUID of the base where the block occurs."""
   baseId: ID!
+  cancelledAt: DateTime
+  completedAt: DateTime
 
   """Timestamp when the booking was created."""
   createdAt: DateTime!
+  dispatchedAt: DateTime
 
-  """End time of the booked flight block."""
+  """End time of the booked block."""
   endTime: DateTime!
+  hobbsIn: Float
+  hobbsOut: Float
 
   """Unique identifier (UUID) for the booking."""
   id: ID!
+  participants: [BookingParticipant!]
+  schedulableResource: SchedulableResource
 
-  """Start time of the booked flight block."""
+  """Schedulable resource UUID."""
+  schedulableResourceId: ID!
+
+  """Start time of the booked block."""
   startTime: DateTime!
+  status: BookingStatus!
+  tachIn: Float
+  tachOut: Float
 
-  """The user who owns this booking (populated via relation)."""
+  """The organizing user (populated via relation)."""
   user: User
 
-  """UUID of the user who made the booking."""
+  """UUID of the organizing user (renter / booker)."""
   userId: String!
+}
+
+type BookingParticipant {
+  id: ID!
+  role: BookingParticipantRole!
+  user: User
+  userId: ID!
+}
+
+input BookingParticipantInput {
+  role: BookingParticipantRole!
+  userId: ID!
+}
+
+"""Role of a user on a booking (renter or instructor)."""
+enum BookingParticipantRole {
+  INSTRUCTOR
+  RENTER
+}
+
+"""
+Booking lifecycle: scheduled, dispatched, in progress, completed, or cancelled.
+"""
+enum BookingStatus {
+  CANCELLED
+  COMPLETED
+  DISPATCHED
+  IN_PROGRESS
+  SCHEDULED
+}
+
+input CompleteBookingInput {
+  bookingId: ID!
+  hobbsIn: Float
+  tachIn: Float
 }
 
 """Input for adding a new aircraft to the fleet."""
@@ -161,14 +216,24 @@ input CreateAircraftInput {
 
 """Input for creating a new flight booking."""
 input CreateBookingInput {
-  """UUID of the aircraft to book."""
-  aircraftId: ID!
+  """
+  Book by aircraft UUID; resolves to its SchedulableResource. Provide this or schedulableResourceId.
+  """
+  aircraftId: ID
 
   """UUID of the base where the flight originates."""
   baseId: ID!
 
   """End time of the booking (ISO 8601 format)."""
   endTime: DateTime!
+
+  """
+  Additional participants (e.g. INSTRUCTOR). Renter is always the authenticated user.
+  """
+  participants: [BookingParticipantInput!]
+
+  """Book by schedulable resource UUID. Provide this or aircraftId."""
+  schedulableResourceId: ID
 
   """Start time of the booking (ISO 8601 format)."""
   startTime: DateTime!
@@ -178,6 +243,19 @@ input CreateBookingInput {
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
+
+input DispatchBookingInput {
+  bookingId: ID!
+  hobbsOut: Float
+  tachOut: Float
+}
+
+type FlightReviewRecord {
+  completedAt: DateTime!
+  expiresAt: DateTime!
+  id: ID!
+  userId: ID!
+}
 
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
@@ -223,10 +301,13 @@ input MaintenanceLogEntry {
 }
 
 type Mutation {
-  """
-  Cancel a booking. Allowed for the booking owner or any DISPATCHER in the same organization.
-  """
+  """Soft-cancel a booking (status CANCELLED). Owner or DISPATCHER only."""
   cancelBooking(bookingId: String!): Boolean!
+
+  """
+  Complete a DISPATCHED booking (check-in) and record Hobbs/Tach in. Renter, instructor, or dispatcher.
+  """
+  completeBooking(input: CompleteBookingInput!): Booking!
 
   """Add a new aircraft to the fleet. DISPATCHER only."""
   createAircraft(input: CreateAircraftInput!): Aircraft!
@@ -235,6 +316,10 @@ type Mutation {
   Create a flight booking. Fails if aircraft is grounded or time conflicts exist.
   """
   createBooking(input: CreateBookingInput!): Booking!
+  createSquawk(aircraftId: ID!, description: String, groundsAircraft: Boolean = false, title: String!): Squawk!
+
+  """Mark a SCHEDULED booking as DISPATCHED (checkout)."""
+  dispatchBooking(input: DispatchBookingInput!): Booking!
 
   """
   Batch upload maintenance log records. INSTRUCTOR and DISPATCHER only. Scoped to your organization.
@@ -254,6 +339,23 @@ type Mutation {
 
   """Update aircraft airworthiness status. INSTRUCTOR and DISPATCHER only."""
   updateAircraftStatus(id: ID!, status: AirworthinessStatus!): Aircraft!
+  updateSquawkStatus(squawkId: ID!, status: SquawkStatus!): Squawk!
+
+  """Create or replace aircraft checkout for a user (dispatcher)."""
+  upsertAircraftCheckout(aircraftId: ID!, expiresAt: DateTime!, userId: ID!): AircraftCheckout!
+
+  """Create or replace the latest flight review for a user (dispatcher)."""
+  upsertFlightReview(completedAt: DateTime!, expiresAt: DateTime!, userId: ID!): FlightReviewRecord!
+
+  """Create or replace the latest pilot medical for a user (dispatcher)."""
+  upsertPilotMedical(expiresAt: DateTime!, medicalClass: String!, userId: ID!): PilotMedical!
+}
+
+type PilotMedical {
+  expiresAt: DateTime!
+  id: ID!
+  medicalClass: String!
+  userId: ID!
 }
 
 type Query {
@@ -284,6 +386,9 @@ type Query {
 
   """List bookings for the currently authenticated user."""
   myBookings(baseId: String): [Booking!]!
+
+  """List squawks for the organization."""
+  squawks(aircraftId: ID): [Squawk!]!
 
   """List all users. Restricted to INSTRUCTOR and DISPATCHER."""
   users: [User!]!
@@ -316,6 +421,40 @@ enum Role {
   DISPATCHER
   INSTRUCTOR
   STUDENT
+}
+
+type SchedulableResource {
+  aircraft: Aircraft
+  baseId: ID!
+  id: ID!
+  isActive: Boolean!
+  kind: SchedulableResourceKind!
+  name: String!
+}
+
+"""Kind of schedulable resource."""
+enum SchedulableResourceKind {
+  AIRCRAFT
+  CLASSROOM
+  SIMULATOR
+}
+
+type Squawk {
+  aircraftId: ID!
+  clearedAt: DateTime
+  createdAt: DateTime!
+  description: String
+  groundsAircraft: Boolean!
+  id: ID!
+  status: SquawkStatus!
+  title: String!
+}
+
+"""Lifecycle of a maintenance squawk."""
+enum SquawkStatus {
+  CLEARED
+  DEFERRED
+  OPEN
 }
 
 type Subscription {

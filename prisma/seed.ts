@@ -1,5 +1,10 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient, Role, AirworthinessStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  Role,
+  AirworthinessStatus,
+  SchedulableResourceKind,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -144,6 +149,8 @@ async function main() {
     },
   ];
 
+  const futureQual = new Date('2035-12-31T23:59:59.000Z');
+
   for (const ac of aircraftData) {
     const aircraft = await prisma.aircraft.upsert({
       where: {
@@ -162,7 +169,89 @@ async function main() {
         airworthinessStatus: AirworthinessStatus.FLIGHT_READY,
       },
     });
+    const hasResource = await prisma.schedulableResource.findUnique({
+      where: { aircraftId: aircraft.id },
+    });
+    if (!hasResource) {
+      await prisma.schedulableResource.create({
+        data: {
+          organizationId: org.id,
+          baseId: ac.homeBaseId,
+          kind: SchedulableResourceKind.AIRCRAFT,
+          name: aircraft.tailNumber,
+          aircraftId: aircraft.id,
+        },
+      });
+    }
     console.log(`Aircraft: ${aircraft.tailNumber} (${ac.make} ${ac.model})`);
+  }
+
+  const simExisting = await prisma.schedulableResource.findFirst({
+    where: {
+      organizationId: org.id,
+      kind: SchedulableResourceKind.SIMULATOR,
+      name: 'Frasca Simulator 1',
+    },
+  });
+  if (!simExisting) {
+    await prisma.schedulableResource.create({
+      data: {
+        organizationId: org.id,
+        baseId: kapaBase.id,
+        kind: SchedulableResourceKind.SIMULATOR,
+        name: 'Frasca Simulator 1',
+      },
+    });
+  }
+
+  // Qualifications for seeded users (dispatcher + instructor + student)
+  const qualUsers = [dispatcher, instructor, student];
+  for (const u of qualUsers) {
+    await prisma.pilotMedical.deleteMany({
+      where: { userId: u.id, organizationId: org.id },
+    });
+    await prisma.pilotMedical.create({
+      data: {
+        userId: u.id,
+        organizationId: org.id,
+        class: '2',
+        expiresAt: futureQual,
+      },
+    });
+    await prisma.flightReviewRecord.deleteMany({
+      where: { userId: u.id, organizationId: org.id },
+    });
+    await prisma.flightReviewRecord.create({
+      data: {
+        userId: u.id,
+        organizationId: org.id,
+        completedAt: new Date('2024-06-01T00:00:00.000Z'),
+        expiresAt: futureQual,
+      },
+    });
+  }
+
+  const fleet = await prisma.aircraft.findMany({
+    where: { organizationId: org.id },
+  });
+  for (const u of qualUsers) {
+    for (const ac of fleet) {
+      await prisma.aircraftCheckout.deleteMany({
+        where: {
+          userId: u.id,
+          aircraftId: ac.id,
+          organizationId: org.id,
+        },
+      });
+      await prisma.aircraftCheckout.create({
+        data: {
+          userId: u.id,
+          aircraftId: ac.id,
+          organizationId: org.id,
+          expiresAt: futureQual,
+        },
+      });
+    }
   }
 
   console.log('Seed complete.');

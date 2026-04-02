@@ -115,9 +115,12 @@ describe('AircraftResolver', () => {
     it('resolves the home base for an aircraft', async () => {
       const base = {
         id: 'base-1',
+        organizationId: 'org-1',
         name: 'Main Base',
         icaoCode: 'KAPA',
         timezone: 'America/Denver',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
       mockPrisma.base.findFirst.mockResolvedValue(base);
 
@@ -130,7 +133,6 @@ describe('AircraftResolver', () => {
       expect(result).toEqual(base);
       expect(mockPrisma.base.findFirst).toHaveBeenCalledWith({
         where: { id: 'base-1', organizationId: 'org-1' },
-        select: { id: true, name: true, icaoCode: true, timezone: true },
       });
     });
 

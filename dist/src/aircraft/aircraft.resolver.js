@@ -53,17 +53,17 @@ let AircraftResolver = class AircraftResolver {
         await this.bindTenantContext(user);
         return this.aircraftService.findByBase(baseId);
     }
+    hobbsHours(aircraft) {
+        return Number(aircraft.hobbsHours);
+    }
+    tachHours(aircraft) {
+        return Number(aircraft.tachHours);
+    }
     async homeBase(aircraft) {
         const row = await this.prisma.base.findFirst({
             where: {
                 id: aircraft.homeBaseId,
                 organizationId: aircraft.organizationId,
-            },
-            select: {
-                id: true,
-                name: true,
-                icaoCode: true,
-                timezone: true,
             },
         });
         if (!row) {
@@ -103,6 +103,20 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], AircraftResolver.prototype, "aircraftByBase", null);
+__decorate([
+    (0, graphql_1.ResolveField)(() => Number),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AircraftResolver.prototype, "hobbsHours", null);
+__decorate([
+    (0, graphql_1.ResolveField)(() => Number),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AircraftResolver.prototype, "tachHours", null);
 __decorate([
     (0, graphql_1.ResolveField)(() => base_type_1.BaseType),
     __param(0, (0, graphql_1.Parent)()),

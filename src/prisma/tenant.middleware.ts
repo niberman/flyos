@@ -26,6 +26,13 @@ const DIRECTLY_SCOPED_MODELS: ReadonlySet<string> = new Set([
   'Aircraft',
   'MaintenanceLog',
   'Telemetry',
+  'SchedulableResource',
+  'Squawk',
+  'BookingParticipant',
+  'PilotMedical',
+  'PilotCertificate',
+  'FlightReviewRecord',
+  'AircraftCheckout',
 ]);
 
 /** Models scoped to a tenant only through a related Base row. */
@@ -86,6 +93,9 @@ export function createTenantExtension(
             return query(args);
           }
 
+          // Prisma operation args are a wide union; mutate via a loose handle.
+          const op = args as Record<string, unknown>;
+
           if (model === 'Organization') {
             return query(args);
           }
@@ -99,10 +109,10 @@ export function createTenantExtension(
               return query(args);
             }
             if (operation === 'upsert') {
-              const nextArgs = { ...args };
+              const nextArgs = { ...op };
               if (nextArgs.create) {
                 nextArgs.create = {
-                  ...nextArgs.create,
+                  ...(nextArgs.create as Record<string, unknown>),
                   organizationId,
                 };
               }
@@ -115,12 +125,12 @@ export function createTenantExtension(
               // Bookings and UserBase rows do not have organizationId, so
               // tenant isolation must flow through their related base.
               const tenantClause = { base: { organizationId } };
-              args.where = mergeWhere(
-                args.where as Record<string, unknown> | undefined,
+              op.where = mergeWhere(
+                op.where as Record<string, unknown> | undefined,
                 tenantClause,
               );
             }
-            return query(args);
+            return query(op);
           }
 
           if (!DIRECTLY_SCOPED_MODELS.has(model!)) {
@@ -128,8 +138,8 @@ export function createTenantExtension(
           }
 
           if (FILTERED_ACTIONS.has(operation)) {
-            args.where = mergeWhere(
-              args.where as Record<string, unknown> | undefined,
+            op.where = mergeWhere(
+              op.where as Record<string, unknown> | undefined,
               { organizationId },
             );
           }
@@ -137,15 +147,15 @@ export function createTenantExtension(
           if (operation === 'create') {
             // Directly-scoped models should never rely on callers to remember
             // organizationId; the extension writes it centrally.
-            args.data = { ...args.data, organizationId };
+            op.data = { ...(op.data as Record<string, unknown>), organizationId };
           }
 
           if (operation === 'createMany') {
-            const data = args.data;
+            const data = op.data;
             if (Array.isArray(data)) {
               // Apply the same guarantee across batch inserts so every row is
               // tagged with the active tenant before Prisma executes SQL.
-              args.data = data.map((record: Record<string, unknown>) => ({
+              op.data = data.map((record: Record<string, unknown>) => ({
                 ...record,
                 organizationId,
               }));
@@ -153,16 +163,19 @@ export function createTenantExtension(
           }
 
           if (operation === 'upsert') {
-            args.where = mergeWhere(
-              args.where as Record<string, unknown> | undefined,
+            op.where = mergeWhere(
+              op.where as Record<string, unknown> | undefined,
               { organizationId },
             );
-            if (args.create) {
-              args.create = { ...args.create, organizationId };
+            if (op.create) {
+              op.create = {
+                ...(op.create as Record<string, unknown>),
+                organizationId,
+              };
             }
           }
 
-          return query(args);
+          return query(op);
         },
       },
     },

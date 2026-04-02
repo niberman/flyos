@@ -19,6 +19,16 @@ export declare class AircraftResolver {
         userId: string;
         role: string;
     }, baseId: string): Promise<AircraftType[]>;
+    hobbsHours(aircraft: {
+        hobbsHours: {
+            toString(): string;
+        } | number;
+    }): number;
+    tachHours(aircraft: {
+        tachHours: {
+            toString(): string;
+        } | number;
+    }): number;
     homeBase(aircraft: AircraftType): Promise<BaseType>;
     createAircraft(user: {
         userId: string;

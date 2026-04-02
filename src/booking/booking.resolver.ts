@@ -8,6 +8,9 @@ import {
   Mutation,
   Args,
   Subscription,
+  Parent,
+  ResolveField,
+  Float,
 } from '@nestjs/graphql';
 import { Inject, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { PubSub } from 'graphql-subscriptions';
@@ -15,11 +18,15 @@ import { Role } from '@prisma/client';
 import { BookingType } from './booking.type';
 import { BookingService } from './booking.service';
 import { CreateBookingInput } from './dto/create-booking.input';
+import { DispatchBookingInput } from './dto/dispatch-booking.input';
+import { CompleteBookingInput } from './dto/complete-booking.input';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { AircraftType } from '../aircraft/aircraft.type';
+import { SchedulableResourceType } from './schedulable-resource.type';
 
 @Resolver(() => BookingType)
 export class BookingResolver {
@@ -28,6 +35,62 @@ export class BookingResolver {
     private readonly prisma: PrismaService,
     @Inject('PUB_SUB') private readonly pubSub: PubSub,
   ) {}
+
+  @ResolveField(() => AircraftType, { nullable: true })
+  aircraft(
+    @Parent()
+    booking: {
+      schedulableResource?: { aircraft?: AircraftType | null } | null;
+    },
+  ): AircraftType | null {
+    return booking.schedulableResource?.aircraft ?? null;
+  }
+
+  @ResolveField(() => SchedulableResourceType, { nullable: true })
+  schedulableResource(
+    @Parent()
+    booking: { schedulableResource?: SchedulableResourceType | null },
+  ): SchedulableResourceType | null {
+    return booking.schedulableResource ?? null;
+  }
+
+  @ResolveField(() => String, { nullable: true })
+  aircraftId(
+    @Parent()
+    booking: {
+      schedulableResource?: { aircraftId?: string | null } | null;
+    },
+  ): string | null {
+    return booking.schedulableResource?.aircraftId ?? null;
+  }
+
+  @ResolveField(() => Float, { nullable: true })
+  hobbsOut(
+    @Parent() booking: { hobbsOut?: { toString(): string } | null },
+  ): number | null {
+    return booking.hobbsOut != null ? Number(booking.hobbsOut) : null;
+  }
+
+  @ResolveField(() => Float, { nullable: true })
+  hobbsIn(
+    @Parent() booking: { hobbsIn?: { toString(): string } | null },
+  ): number | null {
+    return booking.hobbsIn != null ? Number(booking.hobbsIn) : null;
+  }
+
+  @ResolveField(() => Float, { nullable: true })
+  tachOut(
+    @Parent() booking: { tachOut?: { toString(): string } | null },
+  ): number | null {
+    return booking.tachOut != null ? Number(booking.tachOut) : null;
+  }
+
+  @ResolveField(() => Float, { nullable: true })
+  tachIn(
+    @Parent() booking: { tachIn?: { toString(): string } | null },
+  ): number | null {
+    return booking.tachIn != null ? Number(booking.tachIn) : null;
+  }
 
   private async requireOrganizationId(userId: string): Promise<string> {
     const user = await this.prisma.user.findUnique({
@@ -125,10 +188,50 @@ export class BookingResolver {
     }) as unknown as BookingType[];
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.INSTRUCTOR, Role.DISPATCHER)
+  @Mutation(() => BookingType, {
+    description: 'Mark a SCHEDULED booking as DISPATCHED (checkout).',
+  })
+  async dispatchBooking(
+    @CurrentUser() user: { userId: string; role: string },
+    @Args('input') input: DispatchBookingInput,
+  ): Promise<BookingType> {
+    const organizationId = await this.requireOrganizationId(user.userId);
+    return this.bookingService.dispatchBooking(
+      input.bookingId,
+      user.userId,
+      user.role as Role,
+      organizationId,
+      input.hobbsOut,
+      input.tachOut,
+    ) as unknown as BookingType;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Mutation(() => BookingType, {
+    description:
+      'Complete a DISPATCHED booking (check-in) and record Hobbs/Tach in. Renter, instructor, or dispatcher.',
+  })
+  async completeBooking(
+    @CurrentUser() user: { userId: string; role: string },
+    @Args('input') input: CompleteBookingInput,
+  ): Promise<BookingType> {
+    const organizationId = await this.requireOrganizationId(user.userId);
+    return this.bookingService.completeBooking(
+      input.bookingId,
+      user.userId,
+      user.role as Role,
+      organizationId,
+      input.hobbsIn,
+      input.tachIn,
+    ) as unknown as BookingType;
+  }
+
   @UseGuards(JwtAuthGuard)
   @Mutation(() => Boolean, {
     description:
-      'Cancel a booking. Allowed for the booking owner or any DISPATCHER in the same organization.',
+      'Soft-cancel a booking (status CANCELLED). Owner or DISPATCHER only.',
   })
   async cancelBooking(
     @CurrentUser() user: { userId: string; role: string },

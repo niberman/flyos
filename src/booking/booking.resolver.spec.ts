@@ -20,6 +20,8 @@ const mockBookingService = {
   findByBase: jest.fn(),
   findByAircraft: jest.fn(),
   cancelBooking: jest.fn(),
+  dispatchBooking: jest.fn(),
+  completeBooking: jest.fn(),
 };
 
 const mockPrisma = {

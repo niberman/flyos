@@ -20,11 +20,15 @@ const client_1 = require("@prisma/client");
 const booking_type_1 = require("./booking.type");
 const booking_service_1 = require("./booking.service");
 const create_booking_input_1 = require("./dto/create-booking.input");
+const dispatch_booking_input_1 = require("./dto/dispatch-booking.input");
+const complete_booking_input_1 = require("./dto/complete-booking.input");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../auth/guards/roles.guard");
 const roles_decorator_1 = require("../auth/decorators/roles.decorator");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const prisma_service_1 = require("../prisma/prisma.service");
+const aircraft_type_1 = require("../aircraft/aircraft.type");
+const schedulable_resource_type_1 = require("./schedulable-resource.type");
 let BookingResolver = class BookingResolver {
     bookingService;
     prisma;
@@ -33,6 +37,27 @@ let BookingResolver = class BookingResolver {
         this.bookingService = bookingService;
         this.prisma = prisma;
         this.pubSub = pubSub;
+    }
+    aircraft(booking) {
+        return booking.schedulableResource?.aircraft ?? null;
+    }
+    schedulableResource(booking) {
+        return booking.schedulableResource ?? null;
+    }
+    aircraftId(booking) {
+        return booking.schedulableResource?.aircraftId ?? null;
+    }
+    hobbsOut(booking) {
+        return booking.hobbsOut != null ? Number(booking.hobbsOut) : null;
+    }
+    hobbsIn(booking) {
+        return booking.hobbsIn != null ? Number(booking.hobbsIn) : null;
+    }
+    tachOut(booking) {
+        return booking.tachOut != null ? Number(booking.tachOut) : null;
+    }
+    tachIn(booking) {
+        return booking.tachIn != null ? Number(booking.tachIn) : null;
     }
     async requireOrganizationId(userId) {
         const user = await this.prisma.user.findUnique({
@@ -70,6 +95,14 @@ let BookingResolver = class BookingResolver {
             endDate,
         });
     }
+    async dispatchBooking(user, input) {
+        const organizationId = await this.requireOrganizationId(user.userId);
+        return this.bookingService.dispatchBooking(input.bookingId, user.userId, user.role, organizationId, input.hobbsOut, input.tachOut);
+    }
+    async completeBooking(user, input) {
+        const organizationId = await this.requireOrganizationId(user.userId);
+        return this.bookingService.completeBooking(input.bookingId, user.userId, user.role, organizationId, input.hobbsIn, input.tachIn);
+    }
     async cancelBooking(user, bookingId) {
         const organizationId = await this.requireOrganizationId(user.userId);
         return this.bookingService.cancelBooking(bookingId, user.userId, user.role, organizationId);
@@ -79,6 +112,55 @@ let BookingResolver = class BookingResolver {
     }
 };
 exports.BookingResolver = BookingResolver;
+__decorate([
+    (0, graphql_1.ResolveField)(() => aircraft_type_1.AircraftType, { nullable: true }),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Object)
+], BookingResolver.prototype, "aircraft", null);
+__decorate([
+    (0, graphql_1.ResolveField)(() => schedulable_resource_type_1.SchedulableResourceType, { nullable: true }),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Object)
+], BookingResolver.prototype, "schedulableResource", null);
+__decorate([
+    (0, graphql_1.ResolveField)(() => String, { nullable: true }),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Object)
+], BookingResolver.prototype, "aircraftId", null);
+__decorate([
+    (0, graphql_1.ResolveField)(() => graphql_1.Float, { nullable: true }),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Object)
+], BookingResolver.prototype, "hobbsOut", null);
+__decorate([
+    (0, graphql_1.ResolveField)(() => graphql_1.Float, { nullable: true }),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Object)
+], BookingResolver.prototype, "hobbsIn", null);
+__decorate([
+    (0, graphql_1.ResolveField)(() => graphql_1.Float, { nullable: true }),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Object)
+], BookingResolver.prototype, "tachOut", null);
+__decorate([
+    (0, graphql_1.ResolveField)(() => graphql_1.Float, { nullable: true }),
+    __param(0, (0, graphql_1.Parent)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Object)
+], BookingResolver.prototype, "tachIn", null);
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, graphql_1.Mutation)(() => booking_type_1.BookingType, {
@@ -144,9 +226,32 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], BookingResolver.prototype, "bookingsByAircraft", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.INSTRUCTOR, client_1.Role.DISPATCHER),
+    (0, graphql_1.Mutation)(() => booking_type_1.BookingType, {
+        description: 'Mark a SCHEDULED booking as DISPATCHED (checkout).',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, dispatch_booking_input_1.DispatchBookingInput]),
+    __metadata("design:returntype", Promise)
+], BookingResolver.prototype, "dispatchBooking", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, graphql_1.Mutation)(() => booking_type_1.BookingType, {
+        description: 'Complete a DISPATCHED booking (check-in) and record Hobbs/Tach in. Renter, instructor, or dispatcher.',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, complete_booking_input_1.CompleteBookingInput]),
+    __metadata("design:returntype", Promise)
+], BookingResolver.prototype, "completeBooking", null);
+__decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, graphql_1.Mutation)(() => Boolean, {
-        description: 'Cancel a booking. Allowed for the booking owner or any DISPATCHER in the same organization.',
+        description: 'Soft-cancel a booking (status CANCELLED). Owner or DISPATCHER only.',
     }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, graphql_1.Args)('bookingId', { type: () => String })),

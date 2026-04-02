@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AircraftService = void 0;
 const common_1 = require("@nestjs/common");
+const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
 const tenant_context_1 = require("../prisma/tenant.context");
 let AircraftService = class AircraftService {
@@ -35,14 +36,26 @@ let AircraftService = class AircraftService {
         if (!homeBase) {
             throw new common_1.BadRequestException('homeBaseId must reference a base in your organization.');
         }
-        return this.prisma.aircraft.create({
-            data: {
-                tailNumber: input.tailNumber,
-                make: input.make,
-                model: input.model,
-                organizationId,
-                homeBaseId: input.homeBaseId,
-            },
+        return this.prisma.$transaction(async (tx) => {
+            const aircraft = await tx.aircraft.create({
+                data: {
+                    tailNumber: input.tailNumber,
+                    make: input.make,
+                    model: input.model,
+                    organizationId,
+                    homeBaseId: input.homeBaseId,
+                },
+            });
+            await tx.schedulableResource.create({
+                data: {
+                    organizationId,
+                    baseId: input.homeBaseId,
+                    kind: client_1.SchedulableResourceKind.AIRCRAFT,
+                    name: input.tailNumber,
+                    aircraftId: aircraft.id,
+                },
+            });
+            return aircraft;
         });
     }
     async findAll(homeBaseId) {
@@ -75,7 +88,16 @@ let AircraftService = class AircraftService {
         return this.prisma.aircraft.findMany({
             where: {
                 organizationId,
-                OR: [{ homeBaseId: baseId }, { bookings: { some: { baseId } } }],
+                OR: [
+                    { homeBaseId: baseId },
+                    {
+                        schedulableResource: {
+                            bookings: {
+                                some: { baseId, status: { not: client_1.BookingStatus.CANCELLED } },
+                            },
+                        },
+                    },
+                ],
             },
         });
     }

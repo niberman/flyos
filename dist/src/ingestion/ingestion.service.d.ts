@@ -7,15 +7,15 @@ export declare class IngestionService {
     ingestMaintenanceLogs(input: BatchMaintenanceInput, organizationId: string): Promise<{
         id: string;
         organizationId: string;
-        timestamp: Date;
-        data: import(".prisma/client/runtime/client").JsonValue;
         aircraftId: string;
+        data: import(".prisma/client/runtime/client").JsonValue;
+        timestamp: Date;
     }[]>;
     ingestTelemetry(input: BatchTelemetryInput, organizationId: string): Promise<{
         id: string;
         organizationId: string;
-        timestamp: Date;
-        data: import(".prisma/client/runtime/client").JsonValue;
         aircraftId: string;
+        data: import(".prisma/client/runtime/client").JsonValue;
+        timestamp: Date;
     }[]>;
 }

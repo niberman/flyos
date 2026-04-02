@@ -11,19 +11,32 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BookingType = void 0;
 const graphql_1 = require("@nestjs/graphql");
+const client_1 = require("@prisma/client");
 const user_type_1 = require("../users/user.type");
 const aircraft_type_1 = require("../aircraft/aircraft.type");
 const base_type_1 = require("../base/base.type");
+const schedulable_resource_type_1 = require("./schedulable-resource.type");
+const booking_participant_type_1 = require("./booking-participant.type");
+(0, graphql_1.registerEnumType)(client_1.BookingStatus, {
+    name: 'BookingStatus',
+    description: 'Booking lifecycle: scheduled, dispatched, in progress, completed, or cancelled.',
+});
 let BookingType = class BookingType {
     id;
     startTime;
     endTime;
+    status;
+    dispatchedAt;
+    completedAt;
+    cancelledAt;
     createdAt;
     baseId;
     userId;
-    aircraftId;
+    schedulableResourceId;
     user;
     aircraft;
+    schedulableResource;
+    participants;
     base;
 };
 exports.BookingType = BookingType;
@@ -32,53 +45,77 @@ __decorate([
     __metadata("design:type", String)
 ], BookingType.prototype, "id", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'Start time of the booked flight block.' }),
+    (0, graphql_1.Field)(() => Date, { description: 'Start time of the booked block.' }),
     __metadata("design:type", Date)
 ], BookingType.prototype, "startTime", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'End time of the booked flight block.' }),
+    (0, graphql_1.Field)(() => Date, { description: 'End time of the booked block.' }),
     __metadata("design:type", Date)
 ], BookingType.prototype, "endTime", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => client_1.BookingStatus),
+    __metadata("design:type", String)
+], BookingType.prototype, "status", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Date, { nullable: true }),
+    __metadata("design:type", Object)
+], BookingType.prototype, "dispatchedAt", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Date, { nullable: true }),
+    __metadata("design:type", Object)
+], BookingType.prototype, "completedAt", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Date, { nullable: true }),
+    __metadata("design:type", Object)
+], BookingType.prototype, "cancelledAt", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Date, { description: 'Timestamp when the booking was created.' }),
     __metadata("design:type", Date)
 ], BookingType.prototype, "createdAt", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the base where the flight originates.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the base where the block occurs.' }),
     __metadata("design:type", String)
 ], BookingType.prototype, "baseId", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'UUID of the user who made the booking.' }),
+    (0, graphql_1.Field)(() => String, { description: 'UUID of the organizing user (renter / booker).' }),
     __metadata("design:type", String)
 ], BookingType.prototype, "userId", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'UUID of the booked aircraft.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'Schedulable resource UUID.' }),
     __metadata("design:type", String)
-], BookingType.prototype, "aircraftId", void 0);
+], BookingType.prototype, "schedulableResourceId", void 0);
 __decorate([
     (0, graphql_1.Field)(() => user_type_1.UserType, {
         nullable: true,
-        description: 'The user who owns this booking (populated via relation).',
+        description: 'The organizing user (populated via relation).',
     }),
     __metadata("design:type", user_type_1.UserType)
 ], BookingType.prototype, "user", void 0);
 __decorate([
     (0, graphql_1.Field)(() => aircraft_type_1.AircraftType, {
         nullable: true,
-        description: 'The aircraft reserved for this booking (populated via relation).',
+        description: 'The aircraft when this booking targets an aircraft resource.',
     }),
     __metadata("design:type", aircraft_type_1.AircraftType)
 ], BookingType.prototype, "aircraft", void 0);
 __decorate([
+    (0, graphql_1.Field)(() => schedulable_resource_type_1.SchedulableResourceType, { nullable: true }),
+    __metadata("design:type", schedulable_resource_type_1.SchedulableResourceType)
+], BookingType.prototype, "schedulableResource", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => [booking_participant_type_1.BookingParticipantType], { nullable: true }),
+    __metadata("design:type", Array)
+], BookingType.prototype, "participants", void 0);
+__decorate([
     (0, graphql_1.Field)(() => base_type_1.BaseType, {
         nullable: true,
-        description: 'The base where this flight originates (populated via relation).',
+        description: 'The base where this booking occurs (populated via relation).',
     }),
     __metadata("design:type", base_type_1.BaseType)
 ], BookingType.prototype, "base", void 0);
 exports.BookingType = BookingType = __decorate([
     (0, graphql_1.ObjectType)('Booking', {
-        description: 'A scheduled flight booking for a user and aircraft.',
+        description: 'A scheduled reservation for a schedulable resource at a base.',
     })
 ], BookingType);
 //# sourceMappingURL=booking.type.js.map

@@ -16,6 +16,8 @@ export declare class AircraftService {
         make: string;
         model: string;
         airworthinessStatus: import("@prisma/client").$Enums.AirworthinessStatus;
+        hobbsHours: import("@prisma/client-runtime-utils").Decimal;
+        tachHours: import("@prisma/client-runtime-utils").Decimal;
         homeBaseId: string;
     }>;
     findAll(homeBaseId?: string): Promise<{
@@ -27,6 +29,8 @@ export declare class AircraftService {
         make: string;
         model: string;
         airworthinessStatus: import("@prisma/client").$Enums.AirworthinessStatus;
+        hobbsHours: import("@prisma/client-runtime-utils").Decimal;
+        tachHours: import("@prisma/client-runtime-utils").Decimal;
         homeBaseId: string;
     }[]>;
     findById(id: string): Promise<{
@@ -38,6 +42,8 @@ export declare class AircraftService {
         make: string;
         model: string;
         airworthinessStatus: import("@prisma/client").$Enums.AirworthinessStatus;
+        hobbsHours: import("@prisma/client-runtime-utils").Decimal;
+        tachHours: import("@prisma/client-runtime-utils").Decimal;
         homeBaseId: string;
     }>;
     findByBase(baseId: string): Promise<{
@@ -49,6 +55,8 @@ export declare class AircraftService {
         make: string;
         model: string;
         airworthinessStatus: import("@prisma/client").$Enums.AirworthinessStatus;
+        hobbsHours: import("@prisma/client-runtime-utils").Decimal;
+        tachHours: import("@prisma/client-runtime-utils").Decimal;
         homeBaseId: string;
     }[]>;
     updateAirworthinessStatus(id: string, status: AirworthinessStatus): Promise<{
@@ -60,6 +68,8 @@ export declare class AircraftService {
         make: string;
         model: string;
         airworthinessStatus: import("@prisma/client").$Enums.AirworthinessStatus;
+        hobbsHours: import("@prisma/client-runtime-utils").Decimal;
+        tachHours: import("@prisma/client-runtime-utils").Decimal;
         homeBaseId: string;
     }>;
 }

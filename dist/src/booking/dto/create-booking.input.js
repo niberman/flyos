@@ -13,9 +13,12 @@ exports.CreateBookingInput = void 0;
 const graphql_1 = require("@nestjs/graphql");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
+const booking_participant_input_1 = require("./booking-participant.input");
 let CreateBookingInput = class CreateBookingInput {
     baseId;
     aircraftId;
+    schedulableResourceId;
+    participants;
     startTime;
     endTime;
 };
@@ -26,10 +29,34 @@ __decorate([
     __metadata("design:type", String)
 ], CreateBookingInput.prototype, "baseId", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the aircraft to book.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        nullable: true,
+        description: 'Book by aircraft UUID; resolves to its SchedulableResource. Provide this or schedulableResourceId.',
+    }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateBookingInput.prototype, "aircraftId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        nullable: true,
+        description: 'Book by schedulable resource UUID. Provide this or aircraftId.',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateBookingInput.prototype, "schedulableResourceId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => [booking_participant_input_1.BookingParticipantInput], {
+        nullable: true,
+        description: 'Additional participants (e.g. INSTRUCTOR). Renter is always the authenticated user.',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => booking_participant_input_1.BookingParticipantInput),
+    __metadata("design:type", Array)
+], CreateBookingInput.prototype, "participants", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Date, {
         description: 'Start time of the booking (ISO 8601 format).',

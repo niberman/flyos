@@ -19,7 +19,11 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AirworthinessStatus } from '@prisma/client';
+import {
+  AirworthinessStatus,
+  BookingStatus,
+  SchedulableResourceKind,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../prisma/tenant.context';
 import { CreateAircraftInput } from './dto/create-aircraft.input';
@@ -55,14 +59,26 @@ export class AircraftService {
       );
     }
 
-    return this.prisma.aircraft.create({
-      data: {
-        tailNumber: input.tailNumber,
-        make: input.make,
-        model: input.model,
-        organizationId,
-        homeBaseId: input.homeBaseId,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const aircraft = await tx.aircraft.create({
+        data: {
+          tailNumber: input.tailNumber,
+          make: input.make,
+          model: input.model,
+          organizationId,
+          homeBaseId: input.homeBaseId,
+        },
+      });
+      await tx.schedulableResource.create({
+        data: {
+          organizationId,
+          baseId: input.homeBaseId,
+          kind: SchedulableResourceKind.AIRCRAFT,
+          name: input.tailNumber,
+          aircraftId: aircraft.id,
+        },
+      });
+      return aircraft;
     });
   }
 
@@ -111,7 +127,16 @@ export class AircraftService {
     return this.prisma.aircraft.findMany({
       where: {
         organizationId,
-        OR: [{ homeBaseId: baseId }, { bookings: { some: { baseId } } }],
+        OR: [
+          { homeBaseId: baseId },
+          {
+            schedulableResource: {
+              bookings: {
+                some: { baseId, status: { not: BookingStatus.CANCELLED } },
+              },
+            },
+          },
+        ],
       },
     });
   }

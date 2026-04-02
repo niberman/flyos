@@ -139,6 +139,39 @@ function tomorrowIsoUtc(hour: number, minute = 0): string {
   return d.toISOString();
 }
 
+/** Pilot medical, BFR, and per-aircraft checkouts required by BookingService. */
+async function seedPilotComplianceForUser(
+  prisma: PrismaClient,
+  userId: string,
+  organizationId: string,
+  aircraftIds: string[],
+) {
+  const future = new Date('2035-12-31T23:59:59.000Z');
+  await prisma.pilotMedical.deleteMany({ where: { userId, organizationId } });
+  await prisma.pilotMedical.create({
+    data: { userId, organizationId, class: '2', expiresAt: future },
+  });
+  await prisma.flightReviewRecord.deleteMany({
+    where: { userId, organizationId },
+  });
+  await prisma.flightReviewRecord.create({
+    data: {
+      userId,
+      organizationId,
+      completedAt: new Date('2024-06-01T00:00:00.000Z'),
+      expiresAt: future,
+    },
+  });
+  for (const aircraftId of aircraftIds) {
+    await prisma.aircraftCheckout.deleteMany({
+      where: { userId, aircraftId, organizationId },
+    });
+    await prisma.aircraftCheckout.create({
+      data: { userId, aircraftId, organizationId, expiresAt: future },
+    });
+  }
+}
+
 describeDatabaseE2E('FlyOS API (e2e)', () => {
   let app: INestApplication<App>;
   let maintenanceService: MaintenanceService;
@@ -435,6 +468,17 @@ describeDatabaseE2E('FlyOS API (e2e)', () => {
   });
 
   it('3 — booking: create, overlap fails, second aircraft ok, dispatcher vs student queries, cancel', async () => {
+    const studentRow = await adminPrisma.user.findUnique({
+      where: { email: 'e2e.student1@flyos.test' },
+    });
+    expect(studentRow).toBeTruthy();
+    await seedPilotComplianceForUser(
+      adminPrisma,
+      studentRow!.id,
+      org1Id,
+      [aircraftTest1Id, aircraftTest2Id],
+    );
+
     const t0 = tomorrowIsoUtc(10, 0);
     const t1 = tomorrowIsoUtc(12, 0);
     const tOverlapStart = tomorrowIsoUtc(11, 0);
@@ -754,6 +798,16 @@ describeDatabaseE2E('FlyOS API (e2e)', () => {
 
     expect(a3.body.errors).toBeUndefined();
     aircraftTest3Id = a3.body.data.createAircraft.id;
+
+    const studentRow6 = await adminPrisma.user.findUnique({
+      where: { email: 'e2e.student1@flyos.test' },
+    });
+    await seedPilotComplianceForUser(
+      adminPrisma,
+      studentRow6!.id,
+      org1Id,
+      [aircraftTest1Id, aircraftTest2Id, aircraftTest3Id],
+    );
 
     const book3 = await gql(
       `mutation B($input: CreateBookingInput!) {

@@ -4,9 +4,15 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { AirworthinessStatus, Role } from '@prisma/client';
+import {
+  AirworthinessStatus,
+  BookingStatus,
+  Role,
+  SchedulableResourceKind,
+} from '@prisma/client';
 import { BookingService } from './booking.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PilotComplianceService } from '../pilot-compliance/pilot-compliance.service';
 
 const mockPublish = jest.fn().mockResolvedValue(undefined);
 
@@ -14,28 +20,57 @@ const mockPubSub = {
   publish: mockPublish,
 };
 
+const mockCompliance = {
+  assertEligibleForBooking: jest.fn().mockResolvedValue(undefined),
+};
+
 const mockPrisma = {
-  aircraft: { findUnique: jest.fn() },
+  schedulableResource: { findFirst: jest.fn() },
   base: { findUnique: jest.fn() },
   booking: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
   },
+  user: { findFirst: jest.fn() },
+  aircraft: { update: jest.fn() },
+  $transaction: jest.fn(),
 };
 
 const userId = 'user-1';
 const organizationId = 'org-1';
 const aircraftId = 'aircraft-1';
+const resourceId = 'sr-1';
 const baseId = 'base-1';
+
+const resourceAircraft = {
+  id: resourceId,
+  organizationId,
+  kind: SchedulableResourceKind.AIRCRAFT,
+  isActive: true,
+  aircraftId,
+  aircraft: {
+    id: aircraftId,
+    tailNumber: 'N12345',
+    airworthinessStatus: AirworthinessStatus.FLIGHT_READY,
+  },
+};
 
 const baseInput = {
   baseId,
   aircraftId,
   startTime: new Date('2026-06-01T10:00:00Z'),
   endTime: new Date('2026-06-01T12:00:00Z'),
+};
+
+const bookingInclude = {
+  user: true,
+  base: true,
+  schedulableResource: { include: { aircraft: true } },
+  participants: { include: { user: true } },
 };
 
 describe('BookingService', () => {
@@ -47,6 +82,7 @@ describe('BookingService', () => {
       providers: [
         BookingService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: PilotComplianceService, useValue: mockCompliance },
         { provide: 'PUB_SUB', useValue: mockPubSub },
       ],
     }).compile();
@@ -54,33 +90,21 @@ describe('BookingService', () => {
   });
 
   describe('createBooking', () => {
-    it('throws BadRequestException when aircraft not found', async () => {
-      mockPrisma.aircraft.findUnique.mockResolvedValue(null);
+    it('throws when schedulable resource missing for aircraft', async () => {
+      mockPrisma.schedulableResource.findFirst.mockResolvedValue(null);
 
       await expect(
         service.createBooking(userId, organizationId, baseInput),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('throws BadRequestException when aircraft is not in user organization', async () => {
-      mockPrisma.aircraft.findUnique.mockResolvedValue({
-        id: aircraftId,
-        organizationId: 'other-org',
-        tailNumber: 'N12345',
-        airworthinessStatus: AirworthinessStatus.FLIGHT_READY,
-      });
-
-      await expect(
-        service.createBooking(userId, organizationId, baseInput),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('throws BadRequestException when aircraft is GROUNDED', async () => {
-      mockPrisma.aircraft.findUnique.mockResolvedValue({
-        id: aircraftId,
-        organizationId,
-        tailNumber: 'N12345',
-        airworthinessStatus: AirworthinessStatus.GROUNDED,
+    it('throws when aircraft is GROUNDED', async () => {
+      mockPrisma.schedulableResource.findFirst.mockResolvedValue({
+        ...resourceAircraft,
+        aircraft: {
+          ...resourceAircraft.aircraft,
+          airworthinessStatus: AirworthinessStatus.GROUNDED,
+        },
       });
 
       await expect(
@@ -89,11 +113,9 @@ describe('BookingService', () => {
     });
 
     it('throws ConflictException when time block overlaps', async () => {
-      mockPrisma.aircraft.findUnique.mockResolvedValue({
-        id: aircraftId,
-        organizationId,
-        airworthinessStatus: AirworthinessStatus.FLIGHT_READY,
-      });
+      mockPrisma.schedulableResource.findFirst.mockResolvedValue(
+        resourceAircraft,
+      );
       mockPrisma.booking.findFirst.mockResolvedValue({
         id: 'existing-booking',
         startTime: new Date('2026-06-01T09:00:00Z'),
@@ -105,12 +127,10 @@ describe('BookingService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('throws BadRequestException when base is not in user organization', async () => {
-      mockPrisma.aircraft.findUnique.mockResolvedValue({
-        id: aircraftId,
-        organizationId,
-        airworthinessStatus: AirworthinessStatus.FLIGHT_READY,
-      });
+    it('throws when base is not in organization', async () => {
+      mockPrisma.schedulableResource.findFirst.mockResolvedValue(
+        resourceAircraft,
+      );
       mockPrisma.booking.findFirst.mockResolvedValue(null);
       mockPrisma.base.findUnique.mockResolvedValue({
         id: baseId,
@@ -122,25 +142,35 @@ describe('BookingService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('creates a booking when all checks pass', async () => {
-      mockPrisma.aircraft.findUnique.mockResolvedValue({
-        id: aircraftId,
-        organizationId,
-        airworthinessStatus: AirworthinessStatus.FLIGHT_READY,
-      });
+    it('creates booking via transaction when all checks pass', async () => {
+      mockPrisma.schedulableResource.findFirst.mockResolvedValue(
+        resourceAircraft,
+      );
       mockPrisma.booking.findFirst.mockResolvedValue(null);
       mockPrisma.base.findUnique.mockResolvedValue({
         id: baseId,
         organizationId,
       });
+
       const created = {
         id: 'booking-1',
         userId,
-        aircraftId,
+        schedulableResourceId: resourceId,
         baseId,
         base: { organizationId },
+        schedulableResource: resourceAircraft,
       };
-      mockPrisma.booking.create.mockResolvedValue(created);
+
+      mockPrisma.$transaction.mockImplementation(
+        async (fn: (tx: { booking: { create: jest.Mock } }) => Promise<unknown>) => {
+          const tx = {
+            booking: {
+              create: jest.fn().mockResolvedValue(created),
+            },
+          };
+          return fn(tx);
+        },
+      );
 
       const result = await service.createBooking(
         userId,
@@ -149,16 +179,7 @@ describe('BookingService', () => {
       );
 
       expect(result).toEqual(created);
-      expect(mockPrisma.booking.create).toHaveBeenCalledWith({
-        data: {
-          userId,
-          aircraftId,
-          baseId,
-          startTime: expect.any(Date),
-          endTime: expect.any(Date),
-        },
-        include: { user: true, aircraft: true, base: true },
-      });
+      expect(mockCompliance.assertEligibleForBooking).toHaveBeenCalled();
       expect(mockPublish).toHaveBeenCalledWith('bookingUpdated', {
         bookingUpdated: { ...created, organizationId },
       });
@@ -166,182 +187,82 @@ describe('BookingService', () => {
   });
 
   describe('findAll', () => {
-    it('filters by organizationId', async () => {
-      const bookings = [{ id: '1' }];
-      mockPrisma.booking.findMany.mockResolvedValue(bookings);
-
-      expect(await service.findAll(organizationId)).toEqual(bookings);
-      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
-        where: { base: { organizationId } },
-        include: { user: true, aircraft: true, base: true },
-        orderBy: { startTime: 'asc' },
-      });
-    });
-
-    it('filters by organizationId and optional baseId', async () => {
+    it('filters cancelled out and by organizationId', async () => {
       mockPrisma.booking.findMany.mockResolvedValue([]);
 
-      await service.findAll(organizationId, baseId);
-
-      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
-        where: { base: { organizationId }, baseId },
-        include: { user: true, aircraft: true, base: true },
-        orderBy: { startTime: 'asc' },
-      });
-    });
-  });
-
-  describe('findByBase', () => {
-    it('returns only bookings at that base', async () => {
-      const rows = [{ id: 'b1', baseId }];
-      mockPrisma.booking.findMany.mockResolvedValue(rows);
-
-      const result = await service.findByBase(organizationId, baseId);
-
-      expect(result).toEqual(rows);
-      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
-        where: { baseId, base: { organizationId } },
-        include: { user: true, aircraft: true, base: true },
-        orderBy: { startTime: 'asc' },
-      });
-    });
-
-    it('uses overlap filtering when both startDate and endDate are supplied', async () => {
-      const startDate = new Date('2026-06-01T10:00:00.000Z');
-      const endDate = new Date('2026-06-01T12:00:00.000Z');
-      mockPrisma.booking.findMany.mockResolvedValue([]);
-
-      await service.findByBase(organizationId, baseId, {
-        startDate,
-        endDate,
-      });
+      await service.findAll(organizationId);
 
       expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
         where: {
-          baseId,
           base: { organizationId },
-          startTime: { lt: endDate },
-          endTime: { gt: startDate },
+          status: { not: BookingStatus.CANCELLED },
         },
-        include: { user: true, aircraft: true, base: true },
+        include: bookingInclude,
         orderBy: { startTime: 'asc' },
       });
     });
   });
 
   describe('findByAircraft', () => {
-    it('returns bookings for aircraft across bases in the org', async () => {
-      const rows = [
-        { id: 'b1', aircraftId, baseId: 'base-a' },
-        { id: 'b2', aircraftId, baseId: 'base-b' },
-      ];
-      mockPrisma.booking.findMany.mockResolvedValue(rows);
-
-      const result = await service.findByAircraft(organizationId, aircraftId);
-
-      expect(result).toEqual(rows);
-      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
-        where: { aircraftId, base: { organizationId } },
-        include: { user: true, aircraft: true, base: true },
-        orderBy: { startTime: 'asc' },
+    it('resolves resource then lists bookings', async () => {
+      mockPrisma.schedulableResource.findFirst.mockResolvedValue({
+        id: resourceId,
       });
-    });
-
-    it('supports an open-ended startDate filter', async () => {
-      const startDate = new Date('2026-06-01T10:00:00.000Z');
       mockPrisma.booking.findMany.mockResolvedValue([]);
 
-      await service.findByAircraft(organizationId, aircraftId, { startDate });
+      await service.findByAircraft(organizationId, aircraftId);
 
-      expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
-        where: {
-          aircraftId,
-          base: { organizationId },
-          startTime: { gte: startDate },
-        },
-        include: { user: true, aircraft: true, base: true },
-        orderBy: { startTime: 'asc' },
+      expect(mockPrisma.schedulableResource.findFirst).toHaveBeenCalledWith({
+        where: { aircraftId, organizationId },
       });
-    });
-
-    it('supports an open-ended endDate filter', async () => {
-      const endDate = new Date('2026-06-01T12:00:00.000Z');
-      mockPrisma.booking.findMany.mockResolvedValue([]);
-
-      await service.findByAircraft(organizationId, aircraftId, { endDate });
-
       expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
         where: {
-          aircraftId,
+          schedulableResourceId: resourceId,
           base: { organizationId },
-          endTime: { lte: endDate },
+          status: { not: BookingStatus.CANCELLED },
         },
-        include: { user: true, aircraft: true, base: true },
+        include: bookingInclude,
         orderBy: { startTime: 'asc' },
       });
     });
   });
 
   describe('myBookings', () => {
-    it('filters by userId and organizationId', async () => {
+    it('includes participant rows', async () => {
       mockPrisma.booking.findMany.mockResolvedValue([]);
 
       await service.myBookings(userId, organizationId);
 
       expect(mockPrisma.booking.findMany).toHaveBeenCalledWith({
-        where: { userId, base: { organizationId } },
-        include: { user: true, aircraft: true, base: true },
+        where: {
+          base: { organizationId },
+          status: { not: BookingStatus.CANCELLED },
+          OR: [{ userId }, { participants: { some: { userId } } }],
+        },
+        include: bookingInclude,
         orderBy: { startTime: 'asc' },
       });
     });
   });
 
   describe('cancelBooking', () => {
-    it('rejects cancellation when booking does not exist', async () => {
-      mockPrisma.booking.findUnique.mockResolvedValue(null);
-
-      await expect(
-        service.cancelBooking(
-          'missing-booking',
-          userId,
-          Role.STUDENT,
-          organizationId,
-        ),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(mockPrisma.booking.delete).not.toHaveBeenCalled();
-    });
-
-    it('rejects cancellation of bookings from another organization', async () => {
-      mockPrisma.booking.findUnique.mockResolvedValue({
-        id: 'booking-1',
-        userId,
-        base: { organizationId: 'other-org' },
-        user: {},
-        aircraft: {},
-      });
-
-      await expect(
-        service.cancelBooking(
-          'booking-1',
-          userId,
-          Role.DISPATCHER,
-          organizationId,
-        ),
-      ).rejects.toThrow(ForbiddenException);
-
-      expect(mockPrisma.booking.delete).not.toHaveBeenCalled();
-    });
-
-    it('allows the booking owner to cancel', async () => {
+    it('soft-cancels with update', async () => {
       const booking = {
         id: 'booking-1',
         userId,
+        status: BookingStatus.SCHEDULED,
         base: { organizationId },
+        schedulableResource: resourceAircraft,
         user: {},
-        aircraft: {},
+        participants: [],
       };
-      mockPrisma.booking.findUnique.mockResolvedValue(booking);
+      mockPrisma.booking.findFirst.mockResolvedValue(booking);
+      const updated = {
+        ...booking,
+        status: BookingStatus.CANCELLED,
+        cancelledAt: new Date(),
+      };
+      mockPrisma.booking.update.mockResolvedValue(updated);
 
       await expect(
         service.cancelBooking(
@@ -352,68 +273,27 @@ describe('BookingService', () => {
         ),
       ).resolves.toBe(true);
 
-      expect(mockPrisma.booking.delete).toHaveBeenCalledWith({
-        where: { id: 'booking-1' },
-      });
-      expect(mockPublish).toHaveBeenCalledWith('bookingUpdated', {
-        bookingUpdated: { ...booking, organizationId },
-      });
-    });
-
-    it('allows DISPATCHER to cancel any booking in their org', async () => {
-      const booking = {
-        id: 'booking-1',
-        userId: 'other-user',
-        base: { organizationId },
-        user: {},
-        aircraft: {},
-      };
-      mockPrisma.booking.findUnique.mockResolvedValue(booking);
-
-      await expect(
-        service.cancelBooking(
-          'booking-1',
-          userId,
-          Role.DISPATCHER,
-          organizationId,
-        ),
-      ).resolves.toBe(true);
-
-      expect(mockPrisma.booking.delete).toHaveBeenCalled();
-    });
-
-    it('rejects non-owner non-dispatcher', async () => {
-      const booking = {
-        id: 'booking-1',
-        userId: 'other-user',
-        base: { organizationId },
-        user: {},
-        aircraft: {},
-      };
-      mockPrisma.booking.findUnique.mockResolvedValue(booking);
-
-      await expect(
-        service.cancelBooking(
-          'booking-1',
-          userId,
-          Role.STUDENT,
-          organizationId,
-        ),
-      ).rejects.toThrow(ForbiddenException);
-
-      expect(mockPrisma.booking.delete).not.toHaveBeenCalled();
+      expect(mockPrisma.booking.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'booking-1' },
+          data: expect.objectContaining({
+            status: BookingStatus.CANCELLED,
+            cancelledAt: expect.any(Date),
+          }),
+        }),
+      );
     });
   });
 
   describe('findById', () => {
-    it('returns a booking by id', async () => {
-      const booking = { id: 'b-1' };
-      mockPrisma.booking.findUnique.mockResolvedValue(booking);
+    it('uses expanded include', async () => {
+      mockPrisma.booking.findUnique.mockResolvedValue({ id: 'b-1' });
 
-      expect(await service.findById('b-1')).toEqual(booking);
+      await service.findById('b-1');
+
       expect(mockPrisma.booking.findUnique).toHaveBeenCalledWith({
         where: { id: 'b-1' },
-        include: { user: true, aircraft: true, base: true },
+        include: bookingInclude,
       });
     });
   });

@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const graphql_subscriptions_1 = require("graphql-subscriptions");
 const booking_service_1 = require("./booking.service");
 const booking_resolver_1 = require("./booking.resolver");
+const pilot_compliance_module_1 = require("../pilot-compliance/pilot-compliance.module");
 let BookingModule = class BookingModule {
 };
 exports.BookingModule = BookingModule;
 exports.BookingModule = BookingModule = __decorate([
     (0, common_1.Module)({
+        imports: [pilot_compliance_module_1.PilotComplianceModule],
         providers: [
             booking_service_1.BookingService,
             booking_resolver_1.BookingResolver,

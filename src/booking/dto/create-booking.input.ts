@@ -1,15 +1,17 @@
 // ==========================================================================
 // CreateBookingInput — DTO for Creating a Flight Booking
 // ==========================================================================
-// Defines the required fields for scheduling a new flight booking.
-// The userId is NOT included here — it is extracted from the authenticated
-// user's JWT token by the resolver, preventing users from creating
-// bookings on behalf of others (unless they have elevated roles).
-// ==========================================================================
 
 import { InputType, Field, ID } from '@nestjs/graphql';
 import { Type } from 'class-transformer';
-import { IsUUID, IsDate } from 'class-validator';
+import {
+  IsUUID,
+  IsDate,
+  IsOptional,
+  ValidateNested,
+  IsArray,
+} from 'class-validator';
+import { BookingParticipantInput } from './booking-participant.input';
 
 @InputType({ description: 'Input for creating a new flight booking.' })
 export class CreateBookingInput {
@@ -17,15 +19,37 @@ export class CreateBookingInput {
   @IsUUID()
   baseId: string;
 
-  @Field(() => ID, { description: 'UUID of the aircraft to book.' })
+  @Field(() => ID, {
+    nullable: true,
+    description:
+      'Book by aircraft UUID; resolves to its SchedulableResource. Provide this or schedulableResourceId.',
+  })
+  @IsOptional()
   @IsUUID()
-  aircraftId: string;
+  aircraftId?: string;
+
+  @Field(() => ID, {
+    nullable: true,
+    description: 'Book by schedulable resource UUID. Provide this or aircraftId.',
+  })
+  @IsOptional()
+  @IsUUID()
+  schedulableResourceId?: string;
+
+  @Field(() => [BookingParticipantInput], {
+    nullable: true,
+    description:
+      'Additional participants (e.g. INSTRUCTOR). Renter is always the authenticated user.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BookingParticipantInput)
+  participants?: BookingParticipantInput[];
 
   @Field(() => Date, {
     description: 'Start time of the booking (ISO 8601 format).',
   })
-  // GraphQL DateTime values arrive as Date objects by the time class-validator
-  // runs, so validate the transformed object rather than the raw input string.
   @Type(() => Date)
   @IsDate()
   startTime: Date;

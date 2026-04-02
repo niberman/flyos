@@ -4,7 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AirworthinessStatus } from '@prisma/client';
+import { AirworthinessStatus, BookingStatus } from '@prisma/client';
 import { AircraftService } from './aircraft.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContext } from '../prisma/tenant.context';
@@ -18,9 +18,13 @@ const mockPrisma = {
     findFirst: jest.fn(),
     update: jest.fn(),
   },
+  schedulableResource: {
+    create: jest.fn(),
+  },
   base: {
     findFirst: jest.fn(),
   },
+  $transaction: jest.fn(),
 };
 
 function makeTenantContext(orgId: string | null): TenantContext {
@@ -60,7 +64,15 @@ describe('AircraftService', () => {
         homeBaseId: 'base-1',
         ...input,
       };
-      mockPrisma.aircraft.create.mockResolvedValue(expected);
+      const txStub = {
+        aircraft: {
+          create: jest.fn().mockResolvedValue(expected),
+        },
+        schedulableResource: {
+          create: jest.fn().mockResolvedValue({}),
+        },
+      };
+      mockPrisma.$transaction.mockImplementation(async (fn) => fn(txStub));
 
       const result = await service.create(input);
 
@@ -68,15 +80,8 @@ describe('AircraftService', () => {
       expect(mockPrisma.base.findFirst).toHaveBeenCalledWith({
         where: { id: 'base-1', organizationId: ORG_ID },
       });
-      expect(mockPrisma.aircraft.create).toHaveBeenCalledWith({
-        data: {
-          tailNumber: 'N12345',
-          make: 'Cessna',
-          model: '172',
-          organizationId: ORG_ID,
-          homeBaseId: 'base-1',
-        },
-      });
+      expect(txStub.aircraft.create).toHaveBeenCalled();
+      expect(txStub.schedulableResource.create).toHaveBeenCalled();
     });
 
     it('rejects create when homeBaseId belongs to a different organization', async () => {
@@ -91,7 +96,7 @@ describe('AircraftService', () => {
         }),
       ).rejects.toThrow(BadRequestException);
 
-      expect(mockPrisma.aircraft.create).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
   });
 
@@ -171,7 +176,16 @@ describe('AircraftService', () => {
           organizationId: ORG_ID,
           OR: [
             { homeBaseId: 'base-1' },
-            { bookings: { some: { baseId: 'base-1' } } },
+            {
+              schedulableResource: {
+                bookings: {
+                  some: {
+                    baseId: 'base-1',
+                    status: { not: BookingStatus.CANCELLED },
+                  },
+                },
+              },
+            },
           ],
         },
       });

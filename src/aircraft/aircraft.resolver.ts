@@ -94,18 +94,22 @@ export class AircraftResolver {
     return this.aircraftService.findByBase(baseId);
   }
 
+  @ResolveField(() => Number)
+  hobbsHours(@Parent() aircraft: { hobbsHours: { toString(): string } | number }) {
+    return Number(aircraft.hobbsHours);
+  }
+
+  @ResolveField(() => Number)
+  tachHours(@Parent() aircraft: { tachHours: { toString(): string } | number }) {
+    return Number(aircraft.tachHours);
+  }
+
   @ResolveField(() => BaseType)
   async homeBase(@Parent() aircraft: AircraftType): Promise<BaseType> {
     const row = await this.prisma.base.findFirst({
       where: {
         id: aircraft.homeBaseId,
         organizationId: aircraft.organizationId,
-      },
-      select: {
-        id: true,
-        name: true,
-        icaoCode: true,
-        timezone: true,
       },
     });
     if (!row) {
