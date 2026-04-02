@@ -5,7 +5,7 @@
 // role users can execute this mutation (enforced by RolesGuard).
 // ==========================================================================
 
-import { InputType, Field } from '@nestjs/graphql';
+import { InputType, Field, ID } from '@nestjs/graphql';
 import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 @InputType({ description: 'Input for adding a new aircraft to the fleet.' })
@@ -25,11 +25,7 @@ export class CreateAircraftInput {
   @IsString()
   model: string;
 
-  @Field(() => String, { description: 'UUID of the organization this aircraft belongs to.' })
-  @IsUUID()
-  organizationId: string;
-
-  @Field(() => String, { description: 'UUID of the default home base.' })
+  @Field(() => ID, { description: 'UUID of the default home base (must belong to your organization).' })
   @IsUUID()
   homeBaseId: string;
 }

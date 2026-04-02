@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AircraftType = void 0;
 const graphql_1 = require("@nestjs/graphql");
 const client_1 = require("@prisma/client");
+const base_type_1 = require("./base.type");
 (0, graphql_1.registerEnumType)(client_1.AirworthinessStatus, {
     name: 'AirworthinessStatus',
     description: 'Indicates whether an aircraft is cleared for flight operations.',
@@ -22,6 +23,9 @@ let AircraftType = class AircraftType {
     make;
     model;
     airworthinessStatus;
+    organizationId;
+    homeBaseId;
+    homeBase;
     createdAt;
     updatedAt;
 };
@@ -50,6 +54,20 @@ __decorate([
     }),
     __metadata("design:type", String)
 ], AircraftType.prototype, "airworthinessStatus", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the organization this aircraft belongs to.' }),
+    __metadata("design:type", String)
+], AircraftType.prototype, "organizationId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the default home base for this aircraft.' }),
+    __metadata("design:type", String)
+], AircraftType.prototype, "homeBaseId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => base_type_1.BaseType, {
+        description: 'The aircraft home base.',
+    }),
+    __metadata("design:type", base_type_1.BaseType)
+], AircraftType.prototype, "homeBase", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Date, { description: 'Timestamp when the aircraft record was created.' }),
     __metadata("design:type", Date)

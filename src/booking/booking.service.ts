@@ -1,62 +1,66 @@
 // ==========================================================================
 // BookingService — Business Logic for Flight Scheduling
 // ==========================================================================
-// This service implements the core scheduling logic with two critical
-// safety invariants:
-//
-//   1. OVERLAP PREVENTION: A booking cannot be created if the requested
-//      time block overlaps with an existing booking for the same aircraft.
-//      This prevents double-booking and ensures flight safety.
-//
-//   2. AIRWORTHINESS CHECK: A booking cannot be created if the target
-//      aircraft has been grounded (AirworthinessStatus = GROUNDED).
-//      This prevents scheduling flights on unsafe aircraft.
-//
-// In the MVC pattern, this service is the business logic layer between
-// the Controller (BookingResolver) and the Model (PrismaService).
-//
-// Data Flow:
-//   BookingResolver → BookingService (validates constraints) →
-//   PrismaService (queries/writes) → PostgreSQL
-//
-// Conflict Resolution Algorithm:
-//   Two time intervals [A_start, A_end] and [B_start, B_end] overlap if
-//   and only if: A_start < B_end AND A_end > B_start.
-//   This is checked using a Prisma query with compound conditions.
-// ==========================================================================
 
 import {
   Injectable,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
+  Inject,
 } from '@nestjs/common';
-import { AirworthinessStatus } from '@prisma/client';
+import { AirworthinessStatus, Role } from '@prisma/client';
+import { PubSub } from 'graphql-subscriptions';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingInput } from './dto/create-booking.input';
 
+export interface BookingDateRange {
+  startDate?: Date;
+  endDate?: Date;
+}
+
 @Injectable()
 export class BookingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject('PUB_SUB') private readonly pubSub: PubSub,
+  ) {}
 
-  /**
-   * Creates a new flight booking after validating both safety invariants.
-   *
-   * Algorithm:
-   *   1. Fetch the target aircraft and verify it is FLIGHT_READY.
-   *   2. Query for any existing bookings that overlap with the requested
-   *      time block using the interval overlap formula.
-   *   3. If both checks pass, create and return the new booking.
-   *
-   * @param userId - UUID of the authenticated user (from JWT).
-   * @param input  - CreateBookingInput with aircraftId, startTime, endTime.
-   * @returns The created Booking record with user and aircraft relations.
-   * @throws BadRequestException if the aircraft is GROUNDED.
-   * @throws ConflictException if the time block overlaps an existing booking.
-   */
-  async createBooking(userId: string, input: CreateBookingInput) {
-    // ---- INVARIANT 1: Airworthiness Check ----
-    // Fetch the aircraft from the database (Model layer) and verify its status.
-    // A grounded aircraft cannot be booked regardless of time availability.
+  private buildDateRangeWhere(range?: BookingDateRange) {
+    if (!range?.startDate && !range?.endDate) {
+      return {};
+    }
+    if (range.startDate && range.endDate) {
+      return {
+        startTime: { lt: new Date(range.endDate) },
+        endTime: { gt: new Date(range.startDate) },
+      };
+    }
+    if (range.startDate) {
+      return { startTime: { gte: new Date(range.startDate) } };
+    }
+    return { endTime: { lte: new Date(range.endDate!) } };
+  }
+
+  private async publishBookingUpdated(
+    booking: Record<string, unknown> & {
+      base?: { organizationId: string };
+    },
+  ) {
+    const organizationId = booking.base?.organizationId;
+    if (!organizationId) {
+      return;
+    }
+    await this.pubSub.publish('bookingUpdated', {
+      bookingUpdated: { ...booking, organizationId },
+    });
+  }
+
+  async createBooking(
+    userId: string,
+    organizationId: string,
+    input: CreateBookingInput,
+  ) {
     const aircraft = await this.prisma.aircraft.findUnique({
       where: { id: input.aircraftId },
     });
@@ -67,6 +71,12 @@ export class BookingService {
       );
     }
 
+    if (aircraft.organizationId !== organizationId) {
+      throw new BadRequestException(
+        `Aircraft with ID "${input.aircraftId}" is not available in your organization.`,
+      );
+    }
+
     if (aircraft.airworthinessStatus === AirworthinessStatus.GROUNDED) {
       throw new BadRequestException(
         `Aircraft "${aircraft.tailNumber}" is GROUNDED and cannot be booked. ` +
@@ -74,15 +84,9 @@ export class BookingService {
       );
     }
 
-    // ---- INVARIANT 2: Overlap Detection ----
-    // Two time intervals overlap if: existingStart < requestedEnd AND
-    // existingEnd > requestedStart. This query finds any existing booking
-    // for the same aircraft whose time block intersects with the request.
     const overlappingBooking = await this.prisma.booking.findFirst({
       where: {
         aircraftId: input.aircraftId,
-        // The overlap condition expressed as Prisma query filters:
-        // existing.startTime < input.endTime AND existing.endTime > input.startTime
         startTime: { lt: new Date(input.endTime) },
         endTime: { gt: new Date(input.startTime) },
       },
@@ -97,10 +101,17 @@ export class BookingService {
       );
     }
 
-    // ---- Create the Booking ----
-    // Both invariants are satisfied — persist the booking to PostgreSQL
-    // via the Model layer and return it with populated relations.
-    return this.prisma.booking.create({
+    const base = await this.prisma.base.findUnique({
+      where: { id: input.baseId },
+    });
+
+    if (!base || base.organizationId !== organizationId) {
+      throw new BadRequestException(
+        `Base with ID "${input.baseId}" not found or is not in your organization.`,
+      );
+    }
+
+    const created = await this.prisma.booking.create({
       data: {
         userId,
         aircraftId: input.aircraftId,
@@ -111,29 +122,113 @@ export class BookingService {
       include: {
         user: true,
         aircraft: true,
+        base: true,
       },
     });
+
+    await this.publishBookingUpdated(created);
+
+    return created;
   }
 
-  /**
-   * Retrieves all bookings, optionally filtered by user.
-   * Includes related user and aircraft data for the GraphQL response.
-   */
-  async findAll(userId?: string) {
+  async findAll(organizationId: string, baseId?: string) {
     return this.prisma.booking.findMany({
-      where: userId ? { userId } : undefined,
-      include: { user: true, aircraft: true },
+      where: {
+        base: { organizationId },
+        ...(baseId ? { baseId } : {}),
+      },
+      include: { user: true, aircraft: true, base: true },
       orderBy: { startTime: 'asc' },
     });
   }
 
-  /**
-   * Retrieves a single booking by ID.
-   */
+  async findByBase(
+    organizationId: string,
+    baseId: string,
+    dateRange?: BookingDateRange,
+  ) {
+    return this.prisma.booking.findMany({
+      where: {
+        baseId,
+        base: { organizationId },
+        ...this.buildDateRangeWhere(dateRange),
+      },
+      include: { user: true, aircraft: true, base: true },
+      orderBy: { startTime: 'asc' },
+    });
+  }
+
+  async findByAircraft(
+    organizationId: string,
+    aircraftId: string,
+    dateRange?: BookingDateRange,
+  ) {
+    return this.prisma.booking.findMany({
+      where: {
+        aircraftId,
+        base: { organizationId },
+        ...this.buildDateRangeWhere(dateRange),
+      },
+      include: { user: true, aircraft: true, base: true },
+      orderBy: { startTime: 'asc' },
+    });
+  }
+
+  async myBookings(
+    userId: string,
+    organizationId: string,
+    baseId?: string,
+  ) {
+    return this.prisma.booking.findMany({
+      where: {
+        userId,
+        base: { organizationId },
+        ...(baseId ? { baseId } : {}),
+      },
+      include: { user: true, aircraft: true, base: true },
+      orderBy: { startTime: 'asc' },
+    });
+  }
+
   async findById(id: string) {
     return this.prisma.booking.findUnique({
       where: { id },
-      include: { user: true, aircraft: true },
+      include: { user: true, aircraft: true, base: true },
     });
+  }
+
+  async cancelBooking(
+    bookingId: string,
+    userId: string,
+    role: Role,
+    organizationId: string,
+  ) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { base: true, user: true, aircraft: true },
+    });
+
+    if (!booking) {
+      throw new BadRequestException(`Booking with ID "${bookingId}" not found.`);
+    }
+
+    if (booking.base.organizationId !== organizationId) {
+      throw new ForbiddenException('You cannot cancel this booking.');
+    }
+
+    const isOwner = booking.userId === userId;
+    const isDispatcher = role === Role.DISPATCHER;
+
+    if (!isOwner && !isDispatcher) {
+      throw new ForbiddenException('You cannot cancel this booking.');
+    }
+
+    await this.prisma.booking.delete({
+      where: { id: bookingId },
+    });
+
+    await this.publishBookingUpdated(booking);
+
+    return true;
   }
 }

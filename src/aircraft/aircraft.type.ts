@@ -8,6 +8,7 @@
 
 import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
 import { AirworthinessStatus } from '@prisma/client';
+import { BaseType } from './base.type';
 
 // Register the Prisma AirworthinessStatus enum with GraphQL so it can be
 // used as a field type and input argument in the schema.
@@ -40,11 +41,16 @@ export class AircraftType {
   })
   airworthinessStatus: AirworthinessStatus;
 
-  @Field(() => String, { description: 'UUID of the organization this aircraft belongs to.' })
+  @Field(() => ID, { description: 'UUID of the organization this aircraft belongs to.' })
   organizationId: string;
 
-  @Field(() => String, { description: 'UUID of the default home base for this aircraft.' })
+  @Field(() => ID, { description: 'UUID of the default home base for this aircraft.' })
   homeBaseId: string;
+
+  @Field(() => BaseType, {
+    description: 'The aircraft home base.',
+  })
+  homeBase?: BaseType;
 
   @Field(() => Date, { description: 'Timestamp when the aircraft record was created.' })
   createdAt: Date;

@@ -9,12 +9,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MaintenanceModule = void 0;
 const common_1 = require("@nestjs/common");
 const maintenance_service_1 = require("./maintenance.service");
+const maintenance_resolver_1 = require("./maintenance.resolver");
 let MaintenanceModule = class MaintenanceModule {
 };
 exports.MaintenanceModule = MaintenanceModule;
 exports.MaintenanceModule = MaintenanceModule = __decorate([
     (0, common_1.Module)({
-        providers: [maintenance_service_1.MaintenanceService],
+        providers: [maintenance_service_1.MaintenanceService, maintenance_resolver_1.MaintenanceResolver],
         exports: [maintenance_service_1.MaintenanceService],
     })
 ], MaintenanceModule);

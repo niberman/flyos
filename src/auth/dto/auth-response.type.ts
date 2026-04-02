@@ -16,4 +16,9 @@ export class AuthResponse {
     description: 'Signed JWT token for authenticating subsequent requests.',
   })
   access_token: string;
+
+  @Field(() => String, {
+    description: 'UUID of the organization the authenticated user belongs to.',
+  })
+  organizationId: string;
 }

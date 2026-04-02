@@ -14,6 +14,18 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const client_1 = require("@prisma/client");
+const tenant_context_1 = require("./tenant.context");
+const tenant_middleware_1 = require("./tenant.middleware");
+const MODEL_DELEGATES = [
+    'user',
+    'aircraft',
+    'booking',
+    'base',
+    'organization',
+    'maintenanceLog',
+    'telemetry',
+    'userBase',
+];
 let PrismaService = class PrismaService extends client_1.PrismaClient {
     config;
     constructor(config) {
@@ -26,6 +38,22 @@ let PrismaService = class PrismaService extends client_1.PrismaClient {
         this.config = config;
     }
     async onModuleInit() {
+        if (typeof this.$extends === 'function') {
+            const extension = (0, tenant_middleware_1.createTenantExtension)(tenant_context_1.getRequestOrganizationId);
+            const extended = this.$extends(extension);
+            for (const name of MODEL_DELEGATES) {
+                Object.defineProperty(this, name, {
+                    get: () => extended[name],
+                    configurable: true,
+                });
+            }
+            const boundTransaction = extended.$transaction.bind(extended);
+            Object.defineProperty(this, '$transaction', {
+                value: boundTransaction,
+                writable: true,
+                configurable: true,
+            });
+        }
         await this.$connect();
     }
     async onModuleDestroy() {

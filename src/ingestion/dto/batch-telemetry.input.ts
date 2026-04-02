@@ -15,7 +15,8 @@ import { IsUUID, IsOptional, IsDateString } from 'class-validator';
 import { GraphQLJSON } from 'graphql-type-json';
 
 @InputType({
-  description: 'A single telemetry data entry within a batch upload.',
+  description:
+    'A single telemetry data entry within a batch upload. Aircraft must belong to the caller organization.',
 })
 export class TelemetryEntry {
   @Field(() => String, { description: 'UUID of the target aircraft.' })

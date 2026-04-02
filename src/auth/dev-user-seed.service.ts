@@ -40,19 +40,18 @@ export class DevUserSeedService implements OnModuleInit {
     const passwordHash = await bcrypt.hash(password, 10);
 
     try {
-      // Ensure a dev organization and base exist for the seeded user.
       let org = await this.prisma.organization.findUnique({
-        where: { slug: 'dev' },
+        where: { slug: 'dev-org' },
       });
       if (!org) {
         org = await this.prisma.organization.create({
-          data: { name: 'Dev Flight School', slug: 'dev' },
+          data: { name: 'Dev Organization', slug: 'dev-org' },
         });
-        this.logger.log('Seeded dev organization "Dev Flight School".');
+        this.logger.log('Seeded dev organization "Dev Organization".');
       }
 
       let base = await this.prisma.base.findFirst({
-        where: { organizationId: org.id },
+        where: { organizationId: org.id, icaoCode: 'KDEV' },
       });
       if (!base) {
         base = await this.prisma.base.create({
@@ -66,7 +65,7 @@ export class DevUserSeedService implements OnModuleInit {
         this.logger.log('Seeded dev base "Dev Base" (KDEV).');
       }
 
-      await this.prisma.user.create({
+      const user = await this.prisma.user.create({
         data: {
           email,
           passwordHash,
@@ -74,11 +73,19 @@ export class DevUserSeedService implements OnModuleInit {
           organizationId: org.id,
         },
       });
+
+      await this.prisma.userBase.create({
+        data: { userId: user.id, baseId: base.id },
+      });
+
       this.logger.log(
         `Seeded dev user ${email} (login password: env FLYOS_DEV_SEED_PASSWORD or default "flyosdev").`,
       );
     } catch (err: unknown) {
-      const code = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : '';
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? (err as { code: string }).code
+          : '';
       if (code === 'P2002') {
         return;
       }

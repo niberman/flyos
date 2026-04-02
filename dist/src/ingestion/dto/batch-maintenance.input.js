@@ -41,7 +41,7 @@ __decorate([
 ], MaintenanceLogEntry.prototype, "data", void 0);
 exports.MaintenanceLogEntry = MaintenanceLogEntry = __decorate([
     (0, graphql_1.InputType)({
-        description: 'A single maintenance log entry within a batch upload.',
+        description: 'A single maintenance log entry within a batch upload. Aircraft must belong to the caller organization.',
     })
 ], MaintenanceLogEntry);
 let BatchMaintenanceInput = class BatchMaintenanceInput {

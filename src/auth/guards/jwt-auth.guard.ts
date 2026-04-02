@@ -14,15 +14,24 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { GqlExecutionContext } from '@nestjs/graphql';
 import { ConfigService } from '@nestjs/config';
+import { ModuleRef, ContextIdFactory } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TenantContext } from '../../prisma/tenant.context';
 import { isDevAuthBypassEnabled } from '../dev-auth.config';
+
+export type JwtAuthUser = {
+  userId: string;
+  role: string;
+  organizationId?: string;
+};
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly moduleRef: ModuleRef,
   ) {
     super();
   }
@@ -34,7 +43,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     if (!isDevAuthBypassEnabled(this.config)) {
-      return (await super.canActivate(context)) as boolean;
+      const ok = (await super.canActivate(context)) as boolean;
+      if (ok) {
+        await this.applyOrganizationContext(context);
+      }
+      return ok;
     }
 
     const req = this.getRequest(context);
@@ -46,6 +59,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       try {
         const ok = (await super.canActivate(context)) as boolean;
         if (ok) {
+          await this.applyOrganizationContext(context);
           return true;
         }
       } catch {
@@ -54,7 +68,30 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     req.user = await this.resolveDevUser();
+    await this.applyOrganizationContext(context);
     return true;
+  }
+
+  private async applyOrganizationContext(
+    context: ExecutionContext,
+  ): Promise<void> {
+    const req = this.getRequest(context);
+    const user = req.user as JwtAuthUser | undefined;
+    const organizationId = user?.organizationId;
+    if (!organizationId) {
+      return;
+    }
+    req.organizationId = organizationId;
+    try {
+      const contextId = ContextIdFactory.getByRequest(req);
+      const tenantContext = await this.moduleRef.resolve(
+        TenantContext,
+        contextId,
+      );
+      tenantContext.setOrganization(organizationId);
+    } catch {
+      // TenantContext not registered in this application graph.
+    }
   }
 
   private parseDevRole(raw: string | undefined): Role {
@@ -68,7 +105,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return Role.DISPATCHER;
   }
 
-  private async resolveDevUser(): Promise<{ userId: string; role: string }> {
+  private async resolveDevUser(): Promise<JwtAuthUser> {
     const configuredId = this.config.get<string>('FLYOS_DEV_USER_ID')?.trim();
     if (configuredId) {
       const user = await this.prisma.user.findUnique({
@@ -83,6 +120,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return {
         userId: user.id,
         role: this.parseDevRole(roleEnv),
+        organizationId: user.organizationId,
       };
     }
 
@@ -94,6 +132,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         'No users in the database yet. Restart the server so the dev user seed can run, or run register.',
       );
     }
-    return { userId: first.id, role: first.role };
+    return {
+      userId: first.id,
+      role: first.role,
+      organizationId: first.organizationId,
+    };
   }
 }

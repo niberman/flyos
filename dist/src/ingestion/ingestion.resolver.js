@@ -23,17 +23,33 @@ const batch_telemetry_input_1 = require("./dto/batch-telemetry.input");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../auth/guards/roles.guard");
 const roles_decorator_1 = require("../auth/decorators/roles.decorator");
+const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
 const client_1 = require("@prisma/client");
+const prisma_service_1 = require("../prisma/prisma.service");
 let IngestionResolver = class IngestionResolver {
     ingestionService;
-    constructor(ingestionService) {
+    prisma;
+    constructor(ingestionService, prisma) {
         this.ingestionService = ingestionService;
+        this.prisma = prisma;
     }
-    async ingestMaintenanceLogs(input) {
-        return this.ingestionService.ingestMaintenanceLogs(input);
+    async organizationIdForUser(userId) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { organizationId: true },
+        });
+        if (!user) {
+            throw new common_1.UnauthorizedException('User not found');
+        }
+        return user.organizationId;
     }
-    async ingestTelemetry(input) {
-        return this.ingestionService.ingestTelemetry(input);
+    async ingestMaintenanceLogs(user, input) {
+        const organizationId = await this.organizationIdForUser(user.userId);
+        return this.ingestionService.ingestMaintenanceLogs(input, organizationId);
+    }
+    async ingestTelemetry(user, input) {
+        const organizationId = await this.organizationIdForUser(user.userId);
+        return this.ingestionService.ingestTelemetry(input, organizationId);
     }
 };
 exports.IngestionResolver = IngestionResolver;
@@ -41,26 +57,29 @@ __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(client_1.Role.INSTRUCTOR, client_1.Role.DISPATCHER),
     (0, graphql_1.Mutation)(() => [maintenance_log_type_1.MaintenanceLogType], {
-        description: 'Batch upload maintenance log records. INSTRUCTOR and DISPATCHER only.',
+        description: 'Batch upload maintenance log records. INSTRUCTOR and DISPATCHER only. Scoped to your organization.',
     }),
-    __param(0, (0, graphql_1.Args)('input')),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, graphql_1.Args)('input')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [batch_maintenance_input_1.BatchMaintenanceInput]),
+    __metadata("design:paramtypes", [Object, batch_maintenance_input_1.BatchMaintenanceInput]),
     __metadata("design:returntype", Promise)
 ], IngestionResolver.prototype, "ingestMaintenanceLogs", null);
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(client_1.Role.INSTRUCTOR, client_1.Role.DISPATCHER),
     (0, graphql_1.Mutation)(() => [telemetry_type_1.TelemetryType], {
-        description: 'Batch upload telemetry sensor data. INSTRUCTOR and DISPATCHER only.',
+        description: 'Batch upload telemetry sensor data. INSTRUCTOR and DISPATCHER only. Scoped to your organization.',
     }),
-    __param(0, (0, graphql_1.Args)('input')),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, graphql_1.Args)('input')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [batch_telemetry_input_1.BatchTelemetryInput]),
+    __metadata("design:paramtypes", [Object, batch_telemetry_input_1.BatchTelemetryInput]),
     __metadata("design:returntype", Promise)
 ], IngestionResolver.prototype, "ingestTelemetry", null);
 exports.IngestionResolver = IngestionResolver = __decorate([
     (0, graphql_1.Resolver)(),
-    __metadata("design:paramtypes", [ingestion_service_1.IngestionService])
+    __metadata("design:paramtypes", [ingestion_service_1.IngestionService,
+        prisma_service_1.PrismaService])
 ], IngestionResolver);
 //# sourceMappingURL=ingestion.resolver.js.map

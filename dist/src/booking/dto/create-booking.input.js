@@ -13,13 +13,19 @@ exports.CreateBookingInput = void 0;
 const graphql_1 = require("@nestjs/graphql");
 const class_validator_1 = require("class-validator");
 let CreateBookingInput = class CreateBookingInput {
+    baseId;
     aircraftId;
     startTime;
     endTime;
 };
 exports.CreateBookingInput = CreateBookingInput;
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'UUID of the aircraft to book.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the base where the flight originates.' }),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateBookingInput.prototype, "baseId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the aircraft to book.' }),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateBookingInput.prototype, "aircraftId", void 0);

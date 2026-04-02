@@ -3,4 +3,6 @@ export declare class RegisterInput {
     email: string;
     password: string;
     role?: Role;
+    organizationId?: string;
+    organizationName?: string;
 }

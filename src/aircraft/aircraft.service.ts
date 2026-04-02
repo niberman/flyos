@@ -6,52 +6,88 @@
 // and the Model (PrismaService).
 //
 // Key Responsibility:
-//   The updateAirworthinessStatus method is called by the predictive
-//   maintenance cron job when telemetry thresholds are violated, which
-//   automatically grounds unsafe aircraft.
+//   Fleet listing and creation are scoped to the request organization.
+//   Status updates from the maintenance job use Prisma directly.
 //
 // Data Flow:
 //   AircraftResolver → AircraftService → PrismaService → PostgreSQL
 // ==========================================================================
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AirworthinessStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantContext } from '../prisma/tenant.context';
 import { CreateAircraftInput } from './dto/create-aircraft.input';
 
 @Injectable()
 export class AircraftService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantContext: TenantContext,
+  ) {}
+
+  private requireOrganizationId(): string {
+    const organizationId = this.tenantContext.organizationId;
+    if (!organizationId) {
+      throw new UnauthorizedException('Missing organization context.');
+    }
+    return organizationId;
+  }
 
   /**
    * Creates a new aircraft record in the database.
    * New aircraft default to FLIGHT_READY status (set in Prisma schema).
    */
   async create(input: CreateAircraftInput) {
+    const organizationId = this.requireOrganizationId();
+
+    const homeBase = await this.prisma.base.findFirst({
+      where: { id: input.homeBaseId, organizationId },
+    });
+    if (!homeBase) {
+      throw new BadRequestException(
+        'homeBaseId must reference a base in your organization.',
+      );
+    }
+
     return this.prisma.aircraft.create({
       data: {
         tailNumber: input.tailNumber,
         make: input.make,
         model: input.model,
-        organizationId: input.organizationId,
+        organizationId,
         homeBaseId: input.homeBaseId,
       },
     });
   }
 
   /**
-   * Retrieves all aircraft in the fleet.
+   * Retrieves aircraft for the current organization, optionally filtered by home base.
    */
-  async findAll() {
-    return this.prisma.aircraft.findMany();
+  async findAll(homeBaseId?: string) {
+    const organizationId = this.requireOrganizationId();
+    return this.prisma.aircraft.findMany({
+      where: {
+        organizationId,
+        ...(homeBaseId ? { homeBaseId } : {}),
+      },
+    });
   }
 
   /**
-   * Retrieves a single aircraft by UUID.
+   * Retrieves a single aircraft by UUID within the current organization.
    * @throws NotFoundException if no aircraft exists with the given ID.
    */
   async findById(id: string) {
-    const aircraft = await this.prisma.aircraft.findUnique({ where: { id } });
+    const organizationId = this.requireOrganizationId();
+    const aircraft = await this.prisma.aircraft.findFirst({
+      where: { id, organizationId },
+    });
     if (!aircraft) {
       throw new NotFoundException(`Aircraft with ID "${id}" not found.`);
     }
@@ -59,15 +95,44 @@ export class AircraftService {
   }
 
   /**
-   * Updates the airworthiness status of an aircraft.
-   * This method is called by:
-   *   1. The predictive maintenance engine (automatic grounding).
-   *   2. DISPATCHER users (manual status changes via GraphQL mutation).
+   * Aircraft whose home base is `baseId`, plus any same-org aircraft with an active
+   * booking at that base (any time window).
+   */
+  async findByBase(baseId: string) {
+    const organizationId = this.requireOrganizationId();
+
+    const base = await this.prisma.base.findFirst({
+      where: { id: baseId, organizationId },
+    });
+    if (!base) {
+      throw new NotFoundException(`Base with ID "${baseId}" not found.`);
+    }
+
+    return this.prisma.aircraft.findMany({
+      where: {
+        organizationId,
+        OR: [{ homeBaseId: baseId }, { bookings: { some: { baseId } } }],
+      },
+    });
+  }
+
+  /**
+   * Updates the airworthiness status of an aircraft (GraphQL mutation path).
+   * The predictive maintenance job updates status via Prisma directly.
    *
    * @param id - The aircraft UUID.
    * @param status - The new AirworthinessStatus (FLIGHT_READY or GROUNDED).
    */
   async updateAirworthinessStatus(id: string, status: AirworthinessStatus) {
+    const organizationId = this.requireOrganizationId();
+
+    const existing = await this.prisma.aircraft.findFirst({
+      where: { id, organizationId },
+    });
+    if (!existing) {
+      throw new NotFoundException(`Aircraft with ID "${id}" not found.`);
+    }
+
     return this.prisma.aircraft.update({
       where: { id },
       data: { airworthinessStatus: status },

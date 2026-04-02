@@ -21,6 +21,8 @@ let RegisterInput = class RegisterInput {
     email;
     password;
     role;
+    organizationId;
+    organizationName;
 };
 exports.RegisterInput = RegisterInput;
 __decorate([
@@ -43,6 +45,25 @@ __decorate([
     (0, class_validator_1.IsEnum)(client_1.Role),
     __metadata("design:type", String)
 ], RegisterInput.prototype, "role", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => String, {
+        nullable: true,
+        description: 'UUID of an existing organization. If set, the user joins this org (no new org is created).',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], RegisterInput.prototype, "organizationId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => String, {
+        nullable: true,
+        description: 'Name for a new organization. Ignored if organizationId is provided. Creates org, default base, and assigns the user.',
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(1, { message: 'Organization name cannot be empty.' }),
+    __metadata("design:type", String)
+], RegisterInput.prototype, "organizationName", void 0);
 exports.RegisterInput = RegisterInput = __decorate([
     (0, graphql_1.InputType)({ description: 'Input for registering a new user account.' })
 ], RegisterInput);

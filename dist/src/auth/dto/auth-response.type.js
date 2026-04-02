@@ -13,6 +13,7 @@ exports.AuthResponse = void 0;
 const graphql_1 = require("@nestjs/graphql");
 let AuthResponse = class AuthResponse {
     access_token;
+    organizationId;
 };
 exports.AuthResponse = AuthResponse;
 __decorate([
@@ -21,6 +22,12 @@ __decorate([
     }),
     __metadata("design:type", String)
 ], AuthResponse.prototype, "access_token", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => String, {
+        description: 'UUID of the organization the authenticated user belongs to.',
+    }),
+    __metadata("design:type", String)
+], AuthResponse.prototype, "organizationId", void 0);
 exports.AuthResponse = AuthResponse = __decorate([
     (0, graphql_1.ObjectType)({
         description: 'Response returned after successful authentication.',

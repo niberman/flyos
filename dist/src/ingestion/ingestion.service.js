@@ -17,40 +17,42 @@ let IngestionService = class IngestionService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async ingestMaintenanceLogs(input) {
+    async ingestMaintenanceLogs(input, organizationId) {
         const aircraftIds = [...new Set(input.entries.map((e) => e.aircraftId))];
         const existingAircraft = await this.prisma.aircraft.findMany({
-            where: { id: { in: aircraftIds } },
+            where: { id: { in: aircraftIds }, organizationId },
             select: { id: true },
         });
         const existingIds = new Set(existingAircraft.map((a) => a.id));
         const missingIds = aircraftIds.filter((id) => !existingIds.has(id));
         if (missingIds.length > 0) {
-            throw new common_1.BadRequestException(`The following aircraft IDs do not exist: ${missingIds.join(', ')}`);
+            throw new common_1.BadRequestException(`The following aircraft IDs do not exist or do not belong to your organization: ${missingIds.join(', ')}`);
         }
         const created = await this.prisma.$transaction(input.entries.map((entry) => this.prisma.maintenanceLog.create({
             data: {
                 aircraftId: entry.aircraftId,
+                organizationId,
                 timestamp: entry.timestamp ? new Date(entry.timestamp) : new Date(),
                 data: entry.data,
             },
         })));
         return created;
     }
-    async ingestTelemetry(input) {
+    async ingestTelemetry(input, organizationId) {
         const aircraftIds = [...new Set(input.entries.map((e) => e.aircraftId))];
         const existingAircraft = await this.prisma.aircraft.findMany({
-            where: { id: { in: aircraftIds } },
+            where: { id: { in: aircraftIds }, organizationId },
             select: { id: true },
         });
         const existingIds = new Set(existingAircraft.map((a) => a.id));
         const missingIds = aircraftIds.filter((id) => !existingIds.has(id));
         if (missingIds.length > 0) {
-            throw new common_1.BadRequestException(`The following aircraft IDs do not exist: ${missingIds.join(', ')}`);
+            throw new common_1.BadRequestException(`The following aircraft IDs do not exist or do not belong to your organization: ${missingIds.join(', ')}`);
         }
         const created = await this.prisma.$transaction(input.entries.map((entry) => this.prisma.telemetry.create({
             data: {
                 aircraftId: entry.aircraftId,
+                organizationId,
                 timestamp: entry.timestamp ? new Date(entry.timestamp) : new Date(),
                 data: entry.data,
             },

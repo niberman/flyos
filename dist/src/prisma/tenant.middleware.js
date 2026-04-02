@@ -1,0 +1,103 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.createTenantMiddleware = void 0;
+exports.createTenantExtension = createTenantExtension;
+const client_1 = require("@prisma/client");
+const DIRECTLY_SCOPED_MODELS = new Set([
+    'User',
+    'Base',
+    'Aircraft',
+    'MaintenanceLog',
+    'Telemetry',
+]);
+const BASE_SCOPED_MODELS = new Set([
+    'Booking',
+    'UserBase',
+]);
+const FILTERED_ACTIONS = new Set([
+    'findMany',
+    'findFirst',
+    'findFirstOrThrow',
+    'findUnique',
+    'findUniqueOrThrow',
+    'update',
+    'updateMany',
+    'delete',
+    'deleteMany',
+    'count',
+    'aggregate',
+    'groupBy',
+]);
+function mergeWhere(existing, tenantClause) {
+    if (!existing || Object.keys(existing).length === 0) {
+        return tenantClause;
+    }
+    return { AND: [existing, tenantClause] };
+}
+function createTenantExtension(getOrganizationId) {
+    return client_1.Prisma.defineExtension({
+        query: {
+            $allModels: {
+                async $allOperations({ model, operation, args, query }) {
+                    const organizationId = getOrganizationId();
+                    if (!organizationId) {
+                        return query(args);
+                    }
+                    if (model === 'Organization') {
+                        return query(args);
+                    }
+                    if (model === 'User') {
+                        if (operation === 'findUnique' ||
+                            operation === 'findUniqueOrThrow') {
+                            return query(args);
+                        }
+                        if (operation === 'upsert') {
+                            const nextArgs = { ...args };
+                            if (nextArgs.create) {
+                                nextArgs.create = {
+                                    ...nextArgs.create,
+                                    organizationId,
+                                };
+                            }
+                            return query(nextArgs);
+                        }
+                    }
+                    if (BASE_SCOPED_MODELS.has(model)) {
+                        if (FILTERED_ACTIONS.has(operation)) {
+                            const tenantClause = { base: { organizationId } };
+                            args.where = mergeWhere(args.where, tenantClause);
+                        }
+                        return query(args);
+                    }
+                    if (!DIRECTLY_SCOPED_MODELS.has(model)) {
+                        return query(args);
+                    }
+                    if (FILTERED_ACTIONS.has(operation)) {
+                        args.where = mergeWhere(args.where, { organizationId });
+                    }
+                    if (operation === 'create') {
+                        args.data = { ...args.data, organizationId };
+                    }
+                    if (operation === 'createMany') {
+                        const data = args.data;
+                        if (Array.isArray(data)) {
+                            args.data = data.map((record) => ({
+                                ...record,
+                                organizationId,
+                            }));
+                        }
+                    }
+                    if (operation === 'upsert') {
+                        args.where = mergeWhere(args.where, { organizationId });
+                        if (args.create) {
+                            args.create = { ...args.create, organizationId };
+                        }
+                    }
+                    return query(args);
+                },
+            },
+        },
+    });
+}
+exports.createTenantMiddleware = createTenantExtension;
+//# sourceMappingURL=tenant.middleware.js.map

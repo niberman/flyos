@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BookingModule = void 0;
 const common_1 = require("@nestjs/common");
+const graphql_subscriptions_1 = require("graphql-subscriptions");
 const booking_service_1 = require("./booking.service");
 const booking_resolver_1 = require("./booking.resolver");
 let BookingModule = class BookingModule {
@@ -15,7 +16,11 @@ let BookingModule = class BookingModule {
 exports.BookingModule = BookingModule;
 exports.BookingModule = BookingModule = __decorate([
     (0, common_1.Module)({
-        providers: [booking_service_1.BookingService, booking_resolver_1.BookingResolver],
+        providers: [
+            booking_service_1.BookingService,
+            booking_resolver_1.BookingResolver,
+            { provide: 'PUB_SUB', useValue: new graphql_subscriptions_1.PubSub() },
+        ],
         exports: [booking_service_1.BookingService],
     })
 ], BookingModule);

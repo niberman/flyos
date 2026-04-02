@@ -41,7 +41,7 @@ __decorate([
 ], TelemetryEntry.prototype, "data", void 0);
 exports.TelemetryEntry = TelemetryEntry = __decorate([
     (0, graphql_1.InputType)({
-        description: 'A single telemetry data entry within a batch upload.',
+        description: 'A single telemetry data entry within a batch upload. Aircraft must belong to the caller organization.',
     })
 ], TelemetryEntry);
 let BatchTelemetryInput = class BatchTelemetryInput {

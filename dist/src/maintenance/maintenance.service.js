@@ -15,11 +15,9 @@ const common_1 = require("@nestjs/common");
 const schedule_1 = require("@nestjs/schedule");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
-let MaintenanceService = class MaintenanceService {
-    static { MaintenanceService_1 = this; }
+const thresholds_config_1 = require("./thresholds.config");
+let MaintenanceService = MaintenanceService_1 = class MaintenanceService {
     prisma;
-    static MAX_CYLINDER_HEAD_TEMP = 400;
-    static MIN_OIL_PRESSURE = 30;
     logger = new common_1.Logger(MaintenanceService_1.name);
     constructor(prisma) {
         this.prisma = prisma;
@@ -39,25 +37,32 @@ let MaintenanceService = class MaintenanceService {
             this.logger.log('No recent telemetry records found. Scan complete.');
             return;
         }
-        this.logger.log(`Scanning ${recentTelemetry.length} telemetry record(s)...`);
-        const aircraftToGround = new Set();
+        this.logger.log(`Scanning ${recentTelemetry.length} telemetry record(s) across organizations...`);
+        const byOrg = new Map();
         for (const record of recentTelemetry) {
-            const sensorData = record.data;
-            if (sensorData === null || typeof sensorData !== 'object') {
-                continue;
+            const oid = record.organizationId;
+            const list = byOrg.get(oid);
+            if (list) {
+                list.push(record);
             }
-            if (sensorData.cylinderHeadTemperature !== undefined &&
-                sensorData.cylinderHeadTemperature > MaintenanceService_1.MAX_CYLINDER_HEAD_TEMP) {
-                this.logger.warn(`ALERT: Aircraft ${record.aircraft.tailNumber} (${record.aircraftId}) ` +
-                    `has cylinder head temperature of ${sensorData.cylinderHeadTemperature}°F ` +
-                    `(threshold: ${MaintenanceService_1.MAX_CYLINDER_HEAD_TEMP}°F). GROUNDING.`);
-                aircraftToGround.add(record.aircraftId);
+            else {
+                byOrg.set(oid, [record]);
             }
-            if (sensorData.oilPressure !== undefined &&
-                sensorData.oilPressure < MaintenanceService_1.MIN_OIL_PRESSURE) {
-                this.logger.warn(`ALERT: Aircraft ${record.aircraft.tailNumber} (${record.aircraftId}) ` +
-                    `has oil pressure of ${sensorData.oilPressure} PSI ` +
-                    `(threshold: ${MaintenanceService_1.MIN_OIL_PRESSURE} PSI). GROUNDING.`);
+        }
+        for (const [organizationId, records] of byOrg) {
+            await this.processOrgTelemetryWindow(organizationId, records);
+        }
+        this.logger.log('Predictive maintenance scan complete.');
+    }
+    async processOrgTelemetryWindow(organizationId, records) {
+        const aircraftToGround = new Set();
+        for (const record of records) {
+            const violations = (0, thresholds_config_1.evaluateTelemetryViolations)(record.data, thresholds_config_1.DEFAULT_THRESHOLDS);
+            for (const v of violations) {
+                const isLowBound = v.parameter === 'oilPressure' ||
+                    (v.parameter === 'fuelFlow' && v.value < v.threshold);
+                this.logger.warn(`ALERT: [org=${organizationId}] Aircraft ${record.aircraft.tailNumber} (${record.aircraftId}) — ` +
+                    `${v.parameter}=${v.value} ${isLowBound ? 'below' : 'above'} threshold ${v.threshold}. GROUNDING.`);
                 aircraftToGround.add(record.aircraftId);
             }
         }
@@ -65,19 +70,46 @@ let MaintenanceService = class MaintenanceService {
             const result = await this.prisma.aircraft.updateMany({
                 where: {
                     id: { in: Array.from(aircraftToGround) },
+                    organizationId,
                     airworthinessStatus: client_1.AirworthinessStatus.FLIGHT_READY,
                 },
                 data: {
                     airworthinessStatus: client_1.AirworthinessStatus.GROUNDED,
                 },
             });
-            this.logger.warn(`Predictive maintenance grounded ${result.count} aircraft: ` +
+            this.logger.warn(`Predictive maintenance grounded ${result.count} aircraft in org ${organizationId}: ` +
                 `${Array.from(aircraftToGround).join(', ')}`);
         }
         else {
-            this.logger.log('All telemetry within safe thresholds. No aircraft grounded.');
+            this.logger.log(`Organization ${organizationId}: all telemetry within safe thresholds.`);
         }
-        this.logger.log('Predictive maintenance scan complete.');
+    }
+    async getAlertHistory(organizationId, aircraftId, hours = 24) {
+        const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+        const records = await this.prisma.telemetry.findMany({
+            where: {
+                organizationId,
+                timestamp: { gte: since },
+                ...(aircraftId ? { aircraftId } : {}),
+            },
+            include: { aircraft: true },
+            orderBy: { timestamp: 'desc' },
+        });
+        const alerts = [];
+        for (const r of records) {
+            const violations = (0, thresholds_config_1.evaluateTelemetryViolations)(r.data, thresholds_config_1.DEFAULT_THRESHOLDS);
+            for (const v of violations) {
+                alerts.push({
+                    aircraftId: r.aircraftId,
+                    aircraftTailNumber: r.aircraft.tailNumber,
+                    parameter: v.parameter,
+                    value: v.value,
+                    threshold: v.threshold,
+                    timestamp: r.timestamp,
+                });
+            }
+        }
+        return alerts;
     }
 };
 exports.MaintenanceService = MaintenanceService;

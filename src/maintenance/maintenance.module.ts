@@ -11,9 +11,10 @@
 
 import { Module } from '@nestjs/common';
 import { MaintenanceService } from './maintenance.service';
+import { MaintenanceResolver } from './maintenance.resolver';
 
 @Module({
-  providers: [MaintenanceService],
+  providers: [MaintenanceService, MaintenanceResolver],
   exports: [MaintenanceService],
 })
 export class MaintenanceModule {}

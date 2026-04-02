@@ -16,6 +16,7 @@ let UserType = class UserType {
     id;
     email;
     role;
+    organizationId;
     createdAt;
     updatedAt;
 };
@@ -32,6 +33,10 @@ __decorate([
     (0, graphql_1.Field)(() => client_1.Role, { description: 'Role determining the user\'s access level.' }),
     __metadata("design:type", String)
 ], UserType.prototype, "role", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => String, { description: 'UUID of the organization this user belongs to.' }),
+    __metadata("design:type", String)
+], UserType.prototype, "organizationId", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Date, { description: 'Timestamp when the user was created.' }),
     __metadata("design:type", Date)

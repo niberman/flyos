@@ -13,15 +13,18 @@ exports.BookingType = void 0;
 const graphql_1 = require("@nestjs/graphql");
 const user_type_1 = require("../users/user.type");
 const aircraft_type_1 = require("../aircraft/aircraft.type");
+const base_type_1 = require("../base/base.type");
 let BookingType = class BookingType {
     id;
     startTime;
     endTime;
     createdAt;
+    baseId;
     userId;
     aircraftId;
     user;
     aircraft;
+    base;
 };
 exports.BookingType = BookingType;
 __decorate([
@@ -40,6 +43,10 @@ __decorate([
     (0, graphql_1.Field)(() => Date, { description: 'Timestamp when the booking was created.' }),
     __metadata("design:type", Date)
 ], BookingType.prototype, "createdAt", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the base where the flight originates.' }),
+    __metadata("design:type", String)
+], BookingType.prototype, "baseId", void 0);
 __decorate([
     (0, graphql_1.Field)(() => String, { description: 'UUID of the user who made the booking.' }),
     __metadata("design:type", String)
@@ -62,6 +69,13 @@ __decorate([
     }),
     __metadata("design:type", aircraft_type_1.AircraftType)
 ], BookingType.prototype, "aircraft", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => base_type_1.BaseType, {
+        nullable: true,
+        description: 'The base where this flight originates (populated via relation).',
+    }),
+    __metadata("design:type", base_type_1.BaseType)
+], BookingType.prototype, "base", void 0);
 exports.BookingType = BookingType = __decorate([
     (0, graphql_1.ObjectType)('Booking', {
         description: 'A scheduled flight booking for a user and aircraft.',

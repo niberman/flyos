@@ -6,10 +6,14 @@ export declare class AuthService {
     private readonly prisma;
     private readonly jwtService;
     constructor(prisma: PrismaService, jwtService: JwtService);
+    private slugifyOrganizationName;
+    private ensureUniqueOrganizationSlug;
     register(input: RegisterInput): Promise<{
         access_token: string;
+        organizationId: string;
     }>;
     login(input: LoginInput): Promise<{
         access_token: string;
+        organizationId: string;
     }>;
 }

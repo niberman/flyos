@@ -54,6 +54,21 @@ let AuthService = class AuthService {
         this.prisma = prisma;
         this.jwtService = jwtService;
     }
+    slugifyOrganizationName(name) {
+        return name
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, '-');
+    }
+    async ensureUniqueOrganizationSlug(baseSlug) {
+        let slug = baseSlug;
+        let n = 0;
+        while (await this.prisma.organization.findUnique({ where: { slug } })) {
+            n += 1;
+            slug = `${baseSlug}-${n}`;
+        }
+        return slug;
+    }
     async register(input) {
         const existing = await this.prisma.user.findUnique({
             where: { email: input.email },
@@ -62,15 +77,87 @@ let AuthService = class AuthService {
             throw new common_1.ConflictException('A user with this email already exists.');
         }
         const passwordHash = await bcrypt.hash(input.password, 10);
+        let organizationId;
+        let defaultBaseId;
+        if (input.organizationId) {
+            const org = await this.prisma.organization.findUnique({
+                where: { id: input.organizationId },
+                include: {
+                    bases: { take: 1, orderBy: { createdAt: 'asc' } },
+                },
+            });
+            if (!org) {
+                throw new common_1.BadRequestException('Organization not found');
+            }
+            const base = org.bases[0];
+            if (!base) {
+                throw new common_1.BadRequestException('Organization has no base. Add a base before inviting users.');
+            }
+            organizationId = org.id;
+            defaultBaseId = base.id;
+        }
+        else if (input.organizationName?.trim()) {
+            const name = input.organizationName.trim();
+            const baseSlug = this.slugifyOrganizationName(name);
+            const slug = await this.ensureUniqueOrganizationSlug(baseSlug);
+            const created = await this.prisma.$transaction(async (tx) => {
+                const org = await tx.organization.create({
+                    data: { name, slug },
+                });
+                const base = await tx.base.create({
+                    data: {
+                        organizationId: org.id,
+                        name: 'Main Base',
+                        icaoCode: 'XXXX',
+                        timezone: 'UTC',
+                    },
+                });
+                const user = await tx.user.create({
+                    data: {
+                        email: input.email,
+                        passwordHash,
+                        role: input.role ?? undefined,
+                        organizationId: org.id,
+                    },
+                });
+                await tx.userBase.create({
+                    data: { userId: user.id, baseId: base.id },
+                });
+                return { user, organizationId: org.id };
+            });
+            const payload = {
+                sub: created.user.id,
+                role: created.user.role,
+                organizationId: created.organizationId,
+            };
+            return {
+                access_token: this.jwtService.sign(payload),
+                organizationId: created.organizationId,
+            };
+        }
+        else {
+            throw new common_1.BadRequestException('Organization is required');
+        }
         const user = await this.prisma.user.create({
             data: {
                 email: input.email,
                 passwordHash,
-                role: input.role,
+                role: input.role ?? undefined,
+                organizationId,
             },
         });
-        const payload = { sub: user.id, role: user.role };
-        return { access_token: this.jwtService.sign(payload) };
+        await this.prisma.userBase.create({
+            data: { userId: user.id, baseId: defaultBaseId },
+        });
+        const payload = {
+            sub: user.id,
+            role: user.role,
+            organizationId,
+        };
+        return {
+            access_token: this.jwtService.sign(payload),
+            organizationId,
+        };
     }
     async login(input) {
         const user = await this.prisma.user.findUnique({
@@ -83,8 +170,15 @@ let AuthService = class AuthService {
         if (!isPasswordValid) {
             throw new common_1.UnauthorizedException('Invalid credentials.');
         }
-        const payload = { sub: user.id, role: user.role };
-        return { access_token: this.jwtService.sign(payload) };
+        const payload = {
+            sub: user.id,
+            role: user.role,
+            organizationId: user.organizationId,
+        };
+        return {
+            access_token: this.jwtService.sign(payload),
+            organizationId: user.organizationId,
+        };
     }
 };
 exports.AuthService = AuthService;

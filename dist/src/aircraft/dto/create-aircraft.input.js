@@ -16,6 +16,7 @@ let CreateAircraftInput = class CreateAircraftInput {
     tailNumber;
     make;
     model;
+    homeBaseId;
 };
 exports.CreateAircraftInput = CreateAircraftInput;
 __decorate([
@@ -36,6 +37,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateAircraftInput.prototype, "model", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the default home base (must belong to your organization).' }),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateAircraftInput.prototype, "homeBaseId", void 0);
 exports.CreateAircraftInput = CreateAircraftInput = __decorate([
     (0, graphql_1.InputType)({ description: 'Input for adding a new aircraft to the fleet.' })
 ], CreateAircraftInput);

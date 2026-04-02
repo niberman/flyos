@@ -14,16 +14,20 @@ const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const graphql_1 = require("@nestjs/graphql");
 const config_1 = require("@nestjs/config");
+const core_1 = require("@nestjs/core");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const tenant_context_1 = require("../../prisma/tenant.context");
 const dev_auth_config_1 = require("../dev-auth.config");
 let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
     config;
     prisma;
-    constructor(config, prisma) {
+    moduleRef;
+    constructor(config, prisma, moduleRef) {
         super();
         this.config = config;
         this.prisma = prisma;
+        this.moduleRef = moduleRef;
     }
     getRequest(context) {
         const ctx = graphql_1.GqlExecutionContext.create(context);
@@ -31,7 +35,11 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
     }
     async canActivate(context) {
         if (!(0, dev_auth_config_1.isDevAuthBypassEnabled)(this.config)) {
-            return (await super.canActivate(context));
+            const ok = (await super.canActivate(context));
+            if (ok) {
+                await this.applyOrganizationContext(context);
+            }
+            return ok;
         }
         const req = this.getRequest(context);
         const authHeader = req.headers?.authorization;
@@ -40,6 +48,7 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
             try {
                 const ok = (await super.canActivate(context));
                 if (ok) {
+                    await this.applyOrganizationContext(context);
                     return true;
                 }
             }
@@ -47,7 +56,24 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
             }
         }
         req.user = await this.resolveDevUser();
+        await this.applyOrganizationContext(context);
         return true;
+    }
+    async applyOrganizationContext(context) {
+        const req = this.getRequest(context);
+        const user = req.user;
+        const organizationId = user?.organizationId;
+        if (!organizationId) {
+            return;
+        }
+        req.organizationId = organizationId;
+        try {
+            const contextId = core_1.ContextIdFactory.getByRequest(req);
+            const tenantContext = await this.moduleRef.resolve(tenant_context_1.TenantContext, contextId);
+            tenantContext.setOrganization(organizationId);
+        }
+        catch {
+        }
     }
     parseDevRole(raw) {
         if (!raw?.trim()) {
@@ -72,6 +98,7 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
             return {
                 userId: user.id,
                 role: this.parseDevRole(roleEnv),
+                organizationId: user.organizationId,
             };
         }
         const first = await this.prisma.user.findFirst({
@@ -80,13 +107,18 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
         if (!first) {
             throw new common_1.UnauthorizedException('No users in the database yet. Restart the server so the dev user seed can run, or run register.');
         }
-        return { userId: first.id, role: first.role };
+        return {
+            userId: first.id,
+            role: first.role,
+            organizationId: first.organizationId,
+        };
     }
 };
 exports.JwtAuthGuard = JwtAuthGuard;
 exports.JwtAuthGuard = JwtAuthGuard = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [config_1.ConfigService,
-        prisma_service_1.PrismaService])
+        prisma_service_1.PrismaService,
+        core_1.ModuleRef])
 ], JwtAuthGuard);
 //# sourceMappingURL=jwt-auth.guard.js.map

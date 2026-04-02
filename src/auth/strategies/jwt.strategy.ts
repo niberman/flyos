@@ -6,7 +6,7 @@
 //
 //   1. Extracts the JWT from the Authorization header (Bearer scheme).
 //   2. Verifies the token signature using the JWT_SECRET.
-//   3. Decodes the payload and attaches { userId, role } to the request.
+//   3. Decodes the payload and attaches { userId, role, organizationId } to the request.
 //
 // In the MVC pattern, this strategy is part of the Controller middleware
 // pipeline. It runs before the resolver, ensuring that only authenticated
@@ -26,10 +26,13 @@ import { ConfigService } from '@nestjs/config';
  * JwtPayload represents the decoded contents of the JWT.
  * - sub: The user's UUID (subject claim per JWT spec).
  * - role: The user's role (STUDENT, INSTRUCTOR, or DISPATCHER).
+ * - organizationId: The user's organization UUID (omitted on legacy tokens).
  */
 interface JwtPayload {
   sub: string;
   role: string;
+  /** Present on tokens issued after multi-org auth; omitted on legacy JWTs. */
+  organizationId?: string;
 }
 
 @Injectable()
@@ -52,9 +55,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * The return value is attached to the request object as `request.user`.
    *
    * @param payload - The decoded JWT payload.
-   * @returns An object with userId and role, available in resolvers.
+   * @returns An object with userId, role, and organizationId for resolvers and guards.
    */
   async validate(payload: JwtPayload) {
-    return { userId: payload.sub, role: payload.role };
+    return {
+      userId: payload.sub,
+      role: payload.role,
+      organizationId: payload.organizationId,
+    };
   }
 }

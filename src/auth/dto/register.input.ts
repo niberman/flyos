@@ -12,7 +12,14 @@
 // ==========================================================================
 
 import { InputType, Field, registerEnumType } from '@nestjs/graphql';
-import { IsEmail, MinLength, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import {
+  IsEmail,
+  MinLength,
+  IsEnum,
+  IsOptional,
+  IsUUID,
+  IsString,
+} from 'class-validator';
 import { Role } from '@prisma/client';
 
 // Register the Prisma Role enum with GraphQL so it appears in the schema
@@ -42,7 +49,22 @@ export class RegisterInput {
   @IsEnum(Role)
   role?: Role;
 
-  @Field(() => String, { description: 'UUID of the organization the user belongs to.' })
+  @Field(() => String, {
+    nullable: true,
+    description:
+      'UUID of an existing organization. If set, the user joins this org (no new org is created).',
+  })
+  @IsOptional()
   @IsUUID()
-  organizationId: string;
+  organizationId?: string;
+
+  @Field(() => String, {
+    nullable: true,
+    description:
+      'Name for a new organization. Ignored if organizationId is provided. Creates org, default base, and assigns the user.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1, { message: 'Organization name cannot be empty.' })
+  organizationName?: string;
 }
