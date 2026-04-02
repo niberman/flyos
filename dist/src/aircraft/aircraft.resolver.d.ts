@@ -1,5 +1,5 @@
 import { AircraftType } from './aircraft.type';
-import { BaseType } from './base.type';
+import { BaseType } from '../base/base.type';
 import { AircraftService } from './aircraft.service';
 import { CreateAircraftInput } from './dto/create-aircraft.input';
 import { AirworthinessStatus } from '@prisma/client';

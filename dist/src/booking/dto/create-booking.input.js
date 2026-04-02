@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateBookingInput = void 0;
 const graphql_1 = require("@nestjs/graphql");
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 let CreateBookingInput = class CreateBookingInput {
     baseId;
@@ -33,14 +34,16 @@ __decorate([
     (0, graphql_1.Field)(() => Date, {
         description: 'Start time of the booking (ISO 8601 format).',
     }),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_transformer_1.Type)(() => Date),
+    (0, class_validator_1.IsDate)(),
     __metadata("design:type", Date)
 ], CreateBookingInput.prototype, "startTime", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Date, {
         description: 'End time of the booking (ISO 8601 format).',
     }),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_transformer_1.Type)(() => Date),
+    (0, class_validator_1.IsDate)(),
     __metadata("design:type", Date)
 ], CreateBookingInput.prototype, "endTime", void 0);
 exports.CreateBookingInput = CreateBookingInput = __decorate([

@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AircraftType = void 0;
 const graphql_1 = require("@nestjs/graphql");
 const client_1 = require("@prisma/client");
-const base_type_1 = require("./base.type");
+const base_type_1 = require("../base/base.type");
 (0, graphql_1.registerEnumType)(client_1.AirworthinessStatus, {
     name: 'AirworthinessStatus',
     description: 'Indicates whether an aircraft is cleared for flight operations.',

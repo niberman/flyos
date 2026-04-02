@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BatchMaintenanceInput = exports.MaintenanceLogEntry = void 0;
 const graphql_1 = require("@nestjs/graphql");
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const graphql_type_json_1 = require("graphql-type-json");
 let MaintenanceLogEntry = class MaintenanceLogEntry {
@@ -30,13 +31,15 @@ __decorate([
         description: 'Timestamp of the log entry. Defaults to now if omitted.',
     }),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
+    (0, class_transformer_1.Type)(() => Date),
+    (0, class_validator_1.IsDate)(),
     __metadata("design:type", Date)
 ], MaintenanceLogEntry.prototype, "timestamp", void 0);
 __decorate([
     (0, graphql_1.Field)(() => graphql_type_json_1.GraphQLJSON, {
         description: 'Raw maintenance log data (arbitrary JSON structure).',
     }),
+    (0, class_validator_1.Allow)(),
     __metadata("design:type", Object)
 ], MaintenanceLogEntry.prototype, "data", void 0);
 exports.MaintenanceLogEntry = MaintenanceLogEntry = __decorate([
@@ -52,6 +55,9 @@ __decorate([
     (0, graphql_1.Field)(() => [MaintenanceLogEntry], {
         description: 'Array of maintenance log entries to ingest.',
     }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => MaintenanceLogEntry),
     __metadata("design:type", Array)
 ], BatchMaintenanceInput.prototype, "entries", void 0);
 exports.BatchMaintenanceInput = BatchMaintenanceInput = __decorate([
