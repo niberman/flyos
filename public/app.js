@@ -1,255 +1,203 @@
-/* FlyOS disposable demo — POST /graphql, no auth headers */
+/* FlyOS Fleet Dashboard */
 
-const Q_ME = `
-  query Me {
-    me {
-      id
-      email
-      role
-      createdAt
-      updatedAt
-    }
+const TOKEN_KEY = 'flyos_demo_jwt';
+
+const Q_BASES = `
+  query Bases {
+    bases { id name icaoCode }
   }
 `;
 
-const Q_USERS = `
-  query Users {
-    users {
-      id
-      email
-      role
-      createdAt
-      updatedAt
-    }
-  }
-`;
-
-const Q_AIRCRAFT = `
-  query Aircraft {
+const Q_DASHBOARD = `
+  query Dashboard {
     aircraft {
-      id
-      tailNumber
-      make
-      model
-      airworthinessStatus
-      createdAt
-      updatedAt
+      id tailNumber make model airworthinessStatus hobbsHours
+      homeBase { id name icaoCode }
     }
-  }
-`;
-
-const Q_BOOKINGS = `
-  query Bookings {
     bookings {
-      id
-      startTime
-      endTime
-      createdAt
-      userId
-      aircraftId
-      user {
-        id
-        email
-      }
-      aircraft {
-        id
-        tailNumber
-      }
+      id status startTime endTime
+      user { email }
+      aircraft { tailNumber }
     }
   }
 `;
 
-const Q_MY_BOOKINGS = `
-  query MyBookings {
-    myBookings {
-      id
-      startTime
-      endTime
-      createdAt
-      userId
-      aircraftId
-      aircraft {
-        id
-        tailNumber
-      }
-    }
+const M_LOGIN = `
+  mutation Login($input: LoginInput!) {
+    login(input: $input) { access_token organizationId }
   }
 `;
 
 const M_CREATE_AIRCRAFT = `
   mutation CreateAircraft($input: CreateAircraftInput!) {
-    createAircraft(input: $input) {
-      id
-      tailNumber
-      make
-      model
-      airworthinessStatus
-    }
+    createAircraft(input: $input) { id tailNumber }
   }
 `;
 
-const M_UPDATE_AIRCRAFT_STATUS = `
-  mutation UpdateAircraftStatus($id: String!, $status: AirworthinessStatus!) {
-    updateAircraftStatus(id: $id, status: $status) {
-      id
-      tailNumber
-      airworthinessStatus
-    }
+const M_DISPATCH_BOOKING = `
+  mutation DispatchBooking($input: DispatchBookingInput!) {
+    dispatchBooking(input: $input) { id status }
   }
 `;
 
-const M_CREATE_BOOKING = `
-  mutation CreateBooking($input: CreateBookingInput!) {
-    createBooking(input: $input) {
-      id
-      startTime
-      endTime
-      userId
-      aircraftId
-    }
+const M_COMPLETE_BOOKING = `
+  mutation CompleteBooking($input: CompleteBookingInput!) {
+    completeBooking(input: $input) { id status }
   }
 `;
 
-const M_INGEST_MAINTENANCE = `
-  mutation IngestMaint($input: BatchMaintenanceInput!) {
-    ingestMaintenanceLogs(input: $input) {
-      id
-      aircraftId
-      timestamp
-      data
-    }
-  }
-`;
+function $(id) { return document.getElementById(id); }
 
-const M_INGEST_TELEMETRY = `
-  mutation IngestTel($input: BatchTelemetryInput!) {
-    ingestTelemetry(input: $input) {
-      id
-      aircraftId
-      timestamp
-      data
-    }
-  }
-`;
+async function graphqlRequest(query, variables) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (token) headers.Authorization = `Bearer ${token}`;
+  
+  const res = await fetch('/graphql', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ query, variables: variables ?? null }),
+  });
+  const body = await res.json();
+  return body;
+}
 
-function $(id) {
-  return document.getElementById(id);
+function updateAuthIndicator() {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  $('auth-indicator').textContent = token ? 'Authenticated' : 'Dev Mode';
 }
 
 function setOutput(obj) {
   $('output').textContent = JSON.stringify(obj, null, 2);
 }
 
-async function graphqlRequest(query, variables) {
-  const res = await fetch('/graphql', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables: variables ?? null }),
-  });
-  const text = await res.text();
-  let body;
-  try {
-    body = text ? JSON.parse(text) : {};
-  } catch (e) {
-    return {
-      httpStatus: res.status,
-      httpOk: res.ok,
-      parseError: String(e),
-      raw: text,
-    };
-  }
-  return {
-    httpStatus: res.status,
-    httpOk: res.ok,
-    data: body.data,
-    errors: body.errors,
-    extensions: body.extensions,
-  };
-}
-
-async function runQuery(query, variables) {
-  const result = await graphqlRequest(query, variables);
-  setOutput(result);
-}
-
-function formDataToObject(form) {
-  const fd = new FormData(form);
-  const o = {};
-  for (const [k, v] of fd.entries()) {
-    o[k] = typeof v === 'string' ? v : String(v);
-  }
-  return o;
-}
-
-document.getElementById('btn-me').addEventListener('click', () => runQuery(Q_ME));
-document.getElementById('btn-users').addEventListener('click', () => runQuery(Q_USERS));
-document.getElementById('btn-aircraft').addEventListener('click', () => runQuery(Q_AIRCRAFT));
-document.getElementById('btn-bookings').addEventListener('click', () => runQuery(Q_BOOKINGS));
-document.getElementById('btn-my-bookings').addEventListener('click', () => runQuery(Q_MY_BOOKINGS));
-
-document.getElementById('form-create-aircraft').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const f = formDataToObject(e.target);
-  await runQuery(M_CREATE_AIRCRAFT, {
-    input: {
-      tailNumber: f.tailNumber,
-      make: f.make,
-      model: f.model,
-    },
-  });
-});
-
-document.getElementById('form-update-aircraft-status').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const f = formDataToObject(e.target);
-  await runQuery(M_UPDATE_AIRCRAFT_STATUS, {
-    id: f.id,
-    status: f.status,
-  });
-});
-
-document.getElementById('form-create-booking').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const f = formDataToObject(e.target);
-  await runQuery(M_CREATE_BOOKING, {
-    input: {
-      aircraftId: f.aircraftId,
-      startTime: f.startTime,
-      endTime: f.endTime,
-    },
-  });
-});
-
-document.getElementById('form-ingest-maintenance').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const f = formDataToObject(e.target);
-  let data;
-  try {
-    data = JSON.parse(f.data);
-  } catch (err) {
-    setOutput({ clientError: 'maintenance data must be valid JSON object', detail: String(err) });
+async function loadDashboard() {
+  const res = await graphqlRequest(Q_DASHBOARD);
+  if (res.errors) {
+    setOutput(res);
     return;
   }
-  await runQuery(M_INGEST_MAINTENANCE, {
-    input: {
-      entries: [{ aircraftId: f.aircraftId, data }],
-    },
+
+  const aircraft = res.data.aircraft || [];
+  const bookings = (res.data.bookings || []).sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+
+  // Overview Stats
+  $('stat-total-aircraft').textContent = aircraft.length;
+  $('stat-ready-aircraft').textContent = aircraft.filter(a => a.airworthinessStatus === 'FLIGHT_READY').length;
+  $('stat-active-bookings').textContent = bookings.filter(b => b.status === 'SCHEDULED' || b.status === 'DISPATCHED').length;
+
+  // Bookings Table (Overview)
+  const bookingsTbody = $('bookings-tbody');
+  bookingsTbody.innerHTML = bookings.slice(0, 10).map(b => `
+    <tr>
+      <td>${b.aircraft?.tailNumber || 'N/A'}</td>
+      <td>${b.user?.email.split('@')[0] || 'Unknown'}</td>
+      <td>${new Date(b.startTime).toLocaleString()}</td>
+      <td>${new Date(b.endTime).toLocaleString()}</td>
+      <td><span class="status-badge">${b.status}</span></td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center">No recent bookings.</td></tr>';
+
+  // Fleet Table
+  const fleetTbody = $('fleet-tbody');
+  fleetTbody.innerHTML = aircraft.map(a => `
+    <tr>
+      <td><strong>${a.tailNumber}</strong></td>
+      <td>${a.make} ${a.model}</td>
+      <td><span class="status-badge ${a.airworthinessStatus === 'FLIGHT_READY' ? 'status-badge--ready' : 'status-badge--grounded'}">${a.airworthinessStatus}</span></td>
+      <td>${a.homeBase?.icaoCode || 'N/A'}</td>
+      <td>${a.hobbsHours}</td>
+    </tr>
+  `).join('');
+}
+
+async function loadBases() {
+  const res = await graphqlRequest(Q_BASES);
+  const select = $('select-home-base-aircraft');
+  if (res.data?.bases) {
+    res.data.bases.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = `${b.name} (${b.icaoCode})`;
+      select.appendChild(opt);
+    });
+  }
+}
+
+// Tab Switching
+document.querySelectorAll('.tab-link').forEach(link => {
+  link.addEventListener('click', () => {
+    document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('is-active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('is-active'));
+    
+    link.classList.add('is-active');
+    $(`tab-${link.dataset.tab}`).classList.add('is-active');
   });
 });
 
-document.getElementById('form-ingest-telemetry').addEventListener('submit', async (e) => {
+// Forms
+$('form-login').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const f = formDataToObject(e.target);
-  let data;
-  try {
-    data = JSON.parse(f.data);
-  } catch (err) {
-    setOutput({ clientError: 'telemetry data must be valid JSON object', detail: String(err) });
-    return;
-  }
-  await runQuery(M_INGEST_TELEMETRY, {
-    input: {
-      entries: [{ aircraftId: f.aircraftId, data }],
-    },
+  const fd = new FormData(e.target);
+  const res = await graphqlRequest(M_LOGIN, {
+    input: { email: fd.get('email'), password: fd.get('password') }
   });
+  if (res.data?.login?.access_token) {
+    sessionStorage.setItem(TOKEN_KEY, res.data.login.access_token);
+    updateAuthIndicator();
+    loadDashboard();
+  }
+  setOutput(res);
 });
+
+$('btn-clear-token').addEventListener('click', () => {
+  sessionStorage.removeItem(TOKEN_KEY);
+  updateAuthIndicator();
+  location.reload();
+});
+
+$('form-create-aircraft').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const res = await graphqlRequest(M_CREATE_AIRCRAFT, {
+    input: {
+      tailNumber: fd.get('tailNumber'),
+      make: fd.get('make'),
+      model: fd.get('model'),
+      homeBaseId: fd.get('homeBaseId')
+    }
+  });
+  setOutput(res);
+  if (!res.errors) loadDashboard();
+});
+
+$('form-dispatch-booking').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const res = await graphqlRequest(M_DISPATCH_BOOKING, {
+    input: {
+      bookingId: fd.get('bookingId'),
+      hobbsOut: parseFloat(fd.get('hobbsOut'))
+    }
+  });
+  setOutput(res);
+  if (!res.errors) loadDashboard();
+});
+
+$('form-complete-booking').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const res = await graphqlRequest(M_COMPLETE_BOOKING, {
+    input: {
+      bookingId: fd.get('bookingId'),
+      hobbsIn: parseFloat(fd.get('hobbsIn'))
+    }
+  });
+  setOutput(res);
+  if (!res.errors) loadDashboard();
+});
+
+// Init
+updateAuthIndicator();
+loadDashboard();
+loadBases();

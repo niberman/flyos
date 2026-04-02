@@ -12,4 +12,10 @@ export class AppController {
   sendDemoRoot(@Res() res: Response): void {
     res.sendFile(join(process.cwd(), 'public', 'index.html'));
   }
+
+  /** Also registered on the raw Express app in main.ts (runs first at runtime). */
+  @Get('scheduler')
+  sendScheduler(@Res() res: Response): void {
+    res.sendFile(join(process.cwd(), 'public', 'scheduler.html'));
+  }
 }

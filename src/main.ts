@@ -39,17 +39,30 @@
 // ==========================================================================
 
 import { join } from 'path';
+import express from 'express';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { NestExpressApplication } from '@nestjs/platform-express';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  // Create the NestJS application instance from the root module.
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const publicDir = join(process.cwd(), 'public');
 
-  // Static assets for the disposable demo UI (app.js, etc.).
-  app.useStaticAssets(join(process.cwd(), 'public'));
+  // Bind /scheduler on the underlying Express instance before Nest's router so
+  // the path is never shadowed by other HTTP layers (fixes "Cannot GET /scheduler").
+  const expressApp = express();
+  expressApp.get('/scheduler', (_req, res) => {
+    res.sendFile(join(publicDir, 'scheduler.html'));
+  });
+
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule,
+    new ExpressAdapter(expressApp),
+  );
+
+  // Static assets for the disposable demo UI (app.js, scheduler.css, etc.).
+  app.useStaticAssets(publicDir);
 
   // Enable the global ValidationPipe to automatically validate all incoming
   // DTOs using the class-validator decorators (@IsEmail, @MinLength, etc.).

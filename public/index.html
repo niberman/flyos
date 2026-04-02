@@ -2,87 +2,153 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>FlyOS demo (no styling)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FlyOS Dashboard</title>
+    <link rel="stylesheet" href="/dashboard.css" />
   </head>
   <body>
-    <h1>FlyOS GraphQL demo</h1>
-    <p>
-      Disposable UI for backend demos. Outside production, the API impersonates the first user in the DB (or
-      <code>FLYOS_DEV_USER_ID</code>); if the DB was empty at startup, a dev user is seeded automatically. Opt out
-      with <code>FLYOS_STRICT_AUTH=true</code>. Use the
-      <a href="/graphql">GraphQL playground</a> with a JWT when testing real auth.
-    </p>
+    <header class="top-bar">
+      <div class="top-bar__brand">FlyOS</div>
+      <nav class="top-bar__nav" aria-label="Primary">
+        <a href="/scheduler">Command</a>
+        <a class="is-active" href="/">Fleet</a>
+        <a href="/">Logbook</a>
+        <a href="/">Weather</a>
+      </nav>
+      <div class="top-bar__right">
+        <span id="auth-indicator" style="font-size: 0.75rem; color: var(--muted)"></span>
+      </div>
+    </header>
 
-    <h2>Users</h2>
-    <p>
-      <button type="button" id="btn-me">Query me</button>
-      <button type="button" id="btn-users">Query users</button>
-    </p>
+    <div class="app-body">
+      <aside class="sidebar">
+        <a class="sidebar__item" href="/scheduler" title="Schedule">▦</a>
+        <a class="sidebar__item is-active" href="/" title="Aircraft">✈</a>
+        <span class="sidebar__item" title="Maintenance">🔧</span>
+        <span class="sidebar__item" title="Messages">💬</span>
+      </aside>
 
-    <h2>Aircraft</h2>
-    <p>
-      <button type="button" id="btn-aircraft">Query aircraft</button>
-    </p>
-    <form id="form-create-aircraft">
-      <fieldset>
-        <legend>createAircraft (DISPATCHER)</legend>
-        <label>tailNumber <input name="tailNumber" type="text" value="N99999" /></label>
-        <label>make <input name="make" type="text" value="Cessna" /></label>
-        <label>model <input name="model" type="text" value="172" /></label>
-        <button type="submit">Submit</button>
-      </fieldset>
-    </form>
-    <form id="form-update-aircraft-status">
-      <fieldset>
-        <legend>updateAircraftStatus (INSTRUCTOR / DISPATCHER)</legend>
-        <label>aircraft id <input name="id" type="text" placeholder="uuid" /></label>
-        <label
-          >status
-          <select name="status">
-            <option value="FLIGHT_READY">FLIGHT_READY</option>
-            <option value="GROUNDED">GROUNDED</option>
-          </select>
-        </label>
-        <button type="submit">Submit</button>
-      </fieldset>
-    </form>
+      <main class="main-panel">
+        <header class="panel-header">
+          <p class="panel-title">Operations Control</p>
+          <h1 class="panel-heading">Fleet Overview</h1>
+        </header>
 
-    <h2>Bookings</h2>
-    <p>
-      <button type="button" id="btn-bookings">Query bookings</button>
-      <button type="button" id="btn-my-bookings">Query myBookings</button>
-    </p>
-    <form id="form-create-booking">
-      <fieldset>
-        <legend>createBooking</legend>
-        <label>aircraftId <input name="aircraftId" type="text" placeholder="uuid" /></label>
-        <label>startTime (ISO) <input name="startTime" type="text" placeholder="2026-04-01T14:00:00.000Z" /></label>
-        <label>endTime (ISO) <input name="endTime" type="text" placeholder="2026-04-01T16:00:00.000Z" /></label>
-        <button type="submit">Submit</button>
-      </fieldset>
-    </form>
+        <nav class="tab-nav">
+          <div class="tab-link is-active" data-tab="overview">Overview</div>
+          <div class="tab-link" data-tab="fleet">Aircraft</div>
+          <div class="tab-link" data-tab="ops">Operations</div>
+          <div class="tab-link" data-tab="system">System</div>
+        </nav>
 
-    <h2>Ingestion</h2>
-    <form id="form-ingest-maintenance">
-      <fieldset>
-        <legend>ingestMaintenanceLogs</legend>
-        <label>aircraftId <input name="aircraftId" type="text" placeholder="uuid" /></label>
-        <label>data (JSON object) <textarea name="data" rows="4" cols="60">{"note":"demo maintenance"}</textarea></label>
-        <button type="submit">Submit</button>
-      </fieldset>
-    </form>
-    <form id="form-ingest-telemetry">
-      <fieldset>
-        <legend>ingestTelemetry</legend>
-        <label>aircraftId <input name="aircraftId" type="text" placeholder="uuid" /></label>
-        <label>data (JSON object)
-          <textarea name="data" rows="4" cols="60">{"oilPressure":45,"cylinderHeadTemperature":380}</textarea></label>
-        <button type="submit">Submit</button>
-      </fieldset>
-    </form>
+        <!-- Overview Tab -->
+        <div id="tab-overview" class="tab-content is-active">
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-card__label">Total Aircraft</div>
+              <div id="stat-total-aircraft" class="stat-card__value">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card__label">Flight Ready</div>
+              <div id="stat-ready-aircraft" class="stat-card__value">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-card__label">Active Bookings</div>
+              <div id="stat-active-bookings" class="stat-card__value">-</div>
+            </div>
+          </div>
 
-    <h2>Response</h2>
-    <pre id="output">(no request yet)</pre>
+          <h3>Recent Bookings</h3>
+          <div id="recent-bookings-list">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tail</th>
+                  <th>User</th>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="bookings-tbody">
+                <tr><td colspan="5" style="text-align:center">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Fleet Tab -->
+        <div id="tab-fleet" class="tab-content">
+          <h3>Fleet Status</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Tail Number</th>
+                <th>Make/Model</th>
+                <th>Status</th>
+                <th>Base</th>
+                <th>Hobbs</th>
+              </tr>
+            </thead>
+            <tbody id="fleet-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Operations Tab -->
+        <div id="tab-ops" class="tab-content">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <section>
+              <form id="form-login">
+                <fieldset>
+                  <legend>Authentication</legend>
+                  <label>Email <input name="email" type="email" value="dev@flyos.local" /></label>
+                  <label>Password <input name="password" type="password" value="flyosdev" /></label>
+                  <button type="submit">Login</button>
+                  <button type="button" id="btn-clear-token" class="secondary">Clear JWT</button>
+                </fieldset>
+              </form>
+
+              <form id="form-create-aircraft">
+                <fieldset>
+                  <legend>Add Aircraft (DISPATCHER)</legend>
+                  <label>Tail Number <input name="tailNumber" type="text" placeholder="N12345" /></label>
+                  <label>Make <input name="make" type="text" placeholder="Cessna" /></label>
+                  <label>Model <input name="model" type="text" placeholder="172 Skyhawk" /></label>
+                  <label>Home Base <select name="homeBaseId" id="select-home-base-aircraft"><option value="">Select a base...</option></select></label>
+                  <button type="submit">Create</button>
+                </fieldset>
+              </form>
+            </section>
+
+            <section>
+              <form id="form-dispatch-booking">
+                <fieldset>
+                  <legend>Dispatch Booking</legend>
+                  <label>Booking ID <input name="bookingId" type="text" /></label>
+                  <label>Hobbs Out <input name="hobbsOut" type="text" /></label>
+                  <button type="submit">Dispatch</button>
+                </fieldset>
+              </form>
+
+              <form id="form-complete-booking">
+                <fieldset>
+                  <legend>Complete Booking</legend>
+                  <label>Booking ID <input name="bookingId" type="text" /></label>
+                  <label>Hobbs In <input name="hobbsIn" type="text" /></label>
+                  <button type="submit">Complete</button>
+                </fieldset>
+              </form>
+            </section>
+          </div>
+        </div>
+
+        <!-- System Tab -->
+        <div id="tab-system" class="tab-content">
+          <h3>GraphQL Response</h3>
+          <pre id="output">(no request yet)</pre>
+        </div>
+      </main>
+    </div>
 
     <script src="/app.js"></script>
   </body>

@@ -1,0 +1,504 @@
+/* FlyOS Scheduler — Fleet Ops ribbon (tokens aligned to FLYOS Scheduler wireframe; Figma node 1:842 when MCP available) */
+
+:root {
+  --sched-bg: #0a0a0c;
+  --sched-panel: #12141a;
+  --sched-border: #2a2e38;
+  --sched-text: #e8eaef;
+  --sched-muted: #8b919d;
+  --sched-accent: #3b82f6;
+  --sched-accent-dim: rgba(59, 130, 246, 0.35);
+  --sched-row-alt: rgba(255, 255, 255, 0.02);
+  --sched-grid-line: rgba(255, 255, 255, 0.06);
+  --sched-ready: #22c55e;
+  --sched-warn: #eab308;
+  --sched-danger: #ef4444;
+  --sched-ribbon-default: #2d3340;
+  --sched-ribbon-scheduled: #3d4554;
+  --sched-ribbon-dispatched: rgba(59, 130, 246, 0.45);
+  --sched-ribbon-progress: rgba(234, 179, 8, 0.35);
+  --sched-ribbon-done: #252a35;
+  --sched-instructor-bar: #3b82f6;
+  --sched-fab: #3b82f6;
+  --sched-corner-size: 200px;
+  --sched-row-h: 52px;
+  --sched-px-per-hour: 72;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body.sched-page {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--sched-bg);
+  color: var(--sched-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+a {
+  color: var(--sched-accent);
+}
+
+/* Top bar */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1.25rem;
+  border-bottom: 1px solid var(--sched-border);
+  background: var(--sched-panel);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.top-bar__brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.top-bar__nav {
+  display: flex;
+  gap: 1.25rem;
+  flex: 1;
+  justify-content: center;
+  min-width: 200px;
+}
+
+.top-bar__nav a {
+  text-decoration: none;
+  color: var(--sched-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.top-bar__nav a.is-active {
+  color: var(--sched-text);
+  box-shadow: 0 2px 0 0 var(--sched-accent);
+}
+
+.top-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.top-bar__search {
+  width: min(220px, 40vw);
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--sched-border);
+  background: var(--sched-bg);
+  color: var(--sched-muted);
+  font-size: 0.8rem;
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--sched-border);
+  background: var(--sched-bg);
+  color: var(--sched-muted);
+  cursor: default;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+}
+
+/* App layout */
+.app-body {
+  display: flex;
+  min-height: calc(100vh - 52px);
+}
+
+.sidebar {
+  width: 52px;
+  border-right: 1px solid var(--sched-border);
+  background: var(--sched-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 0;
+  gap: 0.35rem;
+}
+
+.sidebar__item {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--sched-muted);
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.sidebar__item.is-active {
+  background: var(--sched-accent-dim);
+  color: var(--sched-accent);
+}
+
+.sidebar__spacer {
+  flex: 1;
+}
+
+.main-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1rem 1rem 5rem;
+}
+
+.panel-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--sched-muted);
+  margin: 0 0 0.35rem;
+}
+
+.panel-heading {
+  font-size: 1.35rem;
+  font-weight: 650;
+  margin: 0 0 1rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--sched-panel);
+  border: 1px solid var(--sched-border);
+  border-radius: 10px;
+}
+
+.toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sched-muted);
+}
+
+.toolbar input[type='text'],
+.toolbar input[type='date'] {
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--sched-border);
+  background: var(--sched-bg);
+  color: var(--sched-text);
+  font: inherit;
+  min-width: 12rem;
+}
+
+.toolbar button {
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--sched-accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toolbar button:hover {
+  filter: brightness(1.08);
+}
+
+.toolbar .hint {
+  font-size: 0.75rem;
+  color: var(--sched-muted);
+  max-width: 280px;
+  line-height: 1.35;
+}
+
+.status-msg {
+  font-size: 0.85rem;
+  color: var(--sched-warn);
+  margin-bottom: 0.75rem;
+  min-height: 1.2em;
+}
+
+.status-msg.is-error {
+  color: var(--sched-danger);
+}
+
+/* Schedule grid */
+.schedule-frame {
+  border: 1px solid var(--sched-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--sched-panel);
+  flex: 1;
+  min-height: 200px;
+}
+
+.schedule-sync {
+  display: grid;
+  grid-template-columns: var(--sched-corner-size) 1fr;
+  grid-template-rows: auto 1fr;
+  max-height: calc(65vh - 20px);
+}
+
+.schedule-corner {
+  border-right: 1px solid var(--sched-border);
+  border-bottom: 1px solid var(--sched-border);
+  background: var(--sched-bg);
+}
+
+.schedule-header-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--sched-border);
+  background: var(--sched-bg);
+}
+
+.schedule-header-scroll::-webkit-scrollbar {
+  height: 0;
+}
+
+.hour-ruler {
+  display: flex;
+  height: 36px;
+  position: relative;
+}
+
+.hour-cell {
+  flex: 0 0 var(--sched-px-per-hour);
+  width: var(--sched-px-per-hour);
+  border-left: 1px solid var(--sched-grid-line);
+  padding: 0.35rem 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--sched-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hour-cell:first-child {
+  border-left: none;
+}
+
+.schedule-body {
+  display: contents;
+}
+
+.labels-col {
+  border-right: 1px solid var(--sched-border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--sched-bg);
+  max-height: calc(65vh - 56px);
+}
+
+.labels-col::-webkit-scrollbar {
+  width: 0;
+}
+
+.resource-label {
+  height: var(--sched-row-h);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.65rem;
+  border-bottom: 1px solid var(--sched-grid-line);
+  font-size: 0.82rem;
+}
+
+.resource-label:nth-child(even) {
+  background: var(--sched-row-alt);
+}
+
+.resource-label__bar {
+  width: 4px;
+  align-self: stretch;
+  border-radius: 2px;
+  margin: 6px 0;
+  flex-shrink: 0;
+}
+
+.resource-label__bar--instructor {
+  background: var(--sched-instructor-bar);
+}
+
+.resource-label__bar--ready {
+  background: var(--sched-ready);
+}
+
+.resource-label__bar--grounded {
+  background: var(--sched-danger);
+}
+
+.resource-label__text {
+  min-width: 0;
+}
+
+.resource-label__title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resource-label__sub {
+  font-size: 0.72rem;
+  color: var(--sched-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grid-scroll {
+  overflow: auto;
+  max-height: calc(65vh - 56px);
+  background: var(--sched-bg);
+}
+
+.grid-scroll-stage {
+  position: relative;
+  display: block;
+}
+
+.grid-inner {
+  position: relative;
+  min-height: 100%;
+}
+
+.timeline-row {
+  height: var(--sched-row-h);
+  border-bottom: 1px solid var(--sched-grid-line);
+  position: relative;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(var(--sched-px-per-hour) - 1px),
+    var(--sched-grid-line) calc(var(--sched-px-per-hour) - 1px),
+    var(--sched-grid-line) var(--sched-px-per-hour)
+  );
+}
+
+.timeline-row:nth-child(even) {
+  background-color: var(--sched-row-alt);
+}
+
+.timeline-row--grounded {
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.ground-hold {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(239, 68, 68, 0.22);
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fecaca;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ribbon {
+  position: absolute;
+  top: 6px;
+  height: calc(var(--sched-row-h) - 12px);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--sched-ribbon-default);
+  color: var(--sched-text);
+}
+
+.ribbon--SCHEDULED {
+  background: var(--sched-ribbon-scheduled);
+}
+
+.ribbon--DISPATCHED {
+  background: var(--sched-ribbon-dispatched);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.ribbon--IN_PROGRESS {
+  background: var(--sched-ribbon-progress);
+  border-color: rgba(234, 179, 8, 0.45);
+}
+
+.ribbon--COMPLETED {
+  background: var(--sched-ribbon-done);
+  color: var(--sched-muted);
+}
+
+.now-line {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--sched-accent);
+  z-index: 4;
+  pointer-events: none;
+  box-shadow: 0 0 8px var(--sched-accent);
+}
+
+.now-line::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: var(--sched-accent);
+}
+
+.fab {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--sched-fab);
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.45);
+}
+
+.fab:hover {
+  filter: brightness(1.1);
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--sched-muted);
+  font-size: 0.9rem;
+}

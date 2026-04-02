@@ -45,6 +45,16 @@ describe('AppController (e2e)', () => {
     expect(response.text).toContain('/graphql');
   });
 
+  it('/scheduler (GET) serves the ribbon scheduler shell', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/scheduler')
+      .expect(200)
+      .expect('Content-Type', /html/);
+
+    expect(response.text).toContain('FlyOS Scheduler');
+    expect(response.text).toContain('/scheduler.css');
+  });
+
   afterAll(async () => {
     await app.close();
   });

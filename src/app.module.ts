@@ -38,6 +38,7 @@ import { IngestionModule } from './ingestion/ingestion.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { PilotComplianceModule } from './pilot-compliance/pilot-compliance.module';
 import { SquawkModule } from './squawk/squawk.module';
+import { BaseModule } from './base/base.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -78,6 +79,7 @@ import { AppController } from './app.controller';
     MaintenanceModule,
     PilotComplianceModule,
     SquawkModule,
+    BaseModule,
   ],
 })
 export class AppModule {}

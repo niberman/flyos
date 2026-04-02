@@ -22,6 +22,7 @@ const ingestion_module_1 = require("./ingestion/ingestion.module");
 const maintenance_module_1 = require("./maintenance/maintenance.module");
 const pilot_compliance_module_1 = require("./pilot-compliance/pilot-compliance.module");
 const squawk_module_1 = require("./squawk/squawk.module");
+const base_module_1 = require("./base/base.module");
 const app_controller_1 = require("./app.controller");
 let AppModule = class AppModule {
 };
@@ -47,6 +48,7 @@ exports.AppModule = AppModule = __decorate([
             maintenance_module_1.MaintenanceModule,
             pilot_compliance_module_1.PilotComplianceModule,
             squawk_module_1.SquawkModule,
+            base_module_1.BaseModule,
         ],
     })
 ], AppModule);

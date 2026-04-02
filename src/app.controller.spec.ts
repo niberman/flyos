@@ -37,4 +37,14 @@ describe('AppController', () => {
       expect(mockRes.sendFile).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('sendScheduler', () => {
+    it('sends the public/scheduler.html file', () => {
+      const mockRes = { sendFile: jest.fn() };
+      controller.sendScheduler(mockRes as any);
+      expect(mockRes.sendFile).toHaveBeenCalledWith(
+        join(process.cwd(), 'public', 'scheduler.html'),
+      );
+    });
+  });
 });
