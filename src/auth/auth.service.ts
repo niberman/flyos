@@ -67,6 +67,7 @@ export class AuthService {
         email: input.email,
         passwordHash,
         role: input.role,
+        organizationId: input.organizationId,
       },
     });
 

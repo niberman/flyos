@@ -12,6 +12,10 @@ import { IsUUID, IsDateString } from 'class-validator';
 
 @InputType({ description: 'Input for creating a new flight booking.' })
 export class CreateBookingInput {
+  @Field(() => String, { description: 'UUID of the base where the flight originates.' })
+  @IsUUID()
+  baseId: string;
+
   @Field(() => String, { description: 'UUID of the aircraft to book.' })
   @IsUUID()
   aircraftId: string;

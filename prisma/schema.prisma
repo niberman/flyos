@@ -6,10 +6,9 @@
 //   1. Generate the type-safe database client (@prisma/client).
 //   2. Create and run SQL migrations against the PostgreSQL database.
 //
-// In the MVC pattern, this schema represents the **Model** layer. Each model
-// below maps to a PostgreSQL table and defines the shape of the data that
-// flows through the Controller (NestJS Resolvers) and is presented to the
-// View (GraphQL API responses consumed by the client).
+// Multi-tenant architecture: every data model is scoped to an Organization.
+// The TenantMiddleware in src/prisma/tenant.middleware.ts automatically
+// injects organizationId filters on all queries to enforce tenant isolation.
 // ==========================================================================
 
 generator client {
@@ -26,9 +25,6 @@ datasource db {
 // --------------------------------------------------------------------------
 
 /// Role determines the level of access a user has within the system.
-/// - STUDENT:    Can view schedules and create bookings for themselves.
-/// - INSTRUCTOR: Can manage bookings and view maintenance data.
-/// - DISPATCHER: Has full administrative access including aircraft management.
 enum Role {
   STUDENT
   INSTRUCTOR
@@ -36,9 +32,6 @@ enum Role {
 }
 
 /// AirworthinessStatus indicates whether an aircraft is cleared for flight.
-/// - FLIGHT_READY: The aircraft has passed all checks and may be booked.
-/// - GROUNDED:     The aircraft has failed a safety check or maintenance
-///                 threshold and must not be booked until cleared.
 enum AirworthinessStatus {
   FLIGHT_READY
   GROUNDED
@@ -48,59 +41,133 @@ enum AirworthinessStatus {
 // Models
 // --------------------------------------------------------------------------
 
+/// Organization represents a flight school or operator. All users, bases,
+/// and aircraft belong to exactly one organization. The slug field enables
+/// subdomain or URL-based routing (e.g., centennial-flight-academy.flyos.com).
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users           User[]
+  bases           Base[]
+  aircraft        Aircraft[]
+  maintenanceLogs MaintenanceLog[]
+  telemetry       Telemetry[]
+
+  @@map("organizations")
+}
+
+/// Base represents a physical airport or flight base operated by an
+/// organization. Identified by its ICAO code (e.g., KAPA, KBJC).
+/// The timezone field is critical because aviation operations cross timezones.
+model Base {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  icaoCode       String       @map("icao_code")
+  timezone       String
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  userBases    UserBase[]
+  homeAircraft Aircraft[]
+  bookings     Booking[]
+
+  @@unique([organizationId, icaoCode])
+  @@index([organizationId])
+  @@map("bases")
+}
+
+/// UserBase is the join table for the many-to-many relationship between
+/// users and bases. A user can be assigned to multiple bases within their
+/// organization, and each base can have multiple users.
+model UserBase {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseId String @map("base_id")
+  base   Base   @relation(fields: [baseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, baseId])
+  @@index([userId])
+  @@index([baseId])
+  @@map("user_bases")
+}
+
 /// User represents an authenticated individual in the system. The password
 /// hash is stored using bcrypt and is never exposed through the GraphQL API.
+/// Each user belongs to one organization and can be assigned to multiple bases.
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  role         Role      @default(STUDENT)
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id             String       @id @default(uuid())
+  email          String       @unique
+  passwordHash   String       @map("password_hash")
+  role           Role         @default(STUDENT)
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  // A user can have many flight bookings (one-to-many relationship).
-  bookings Booking[]
+  bookings  Booking[]
+  userBases UserBase[]
 
+  @@index([organizationId])
   @@map("users")
 }
 
 /// Aircraft represents a physical airplane in the flight school's fleet.
+/// Each aircraft belongs to one organization and has a default home base,
+/// but can be booked at any base within the organization.
 /// The airworthinessStatus field is automatically updated by the predictive
 /// maintenance engine when telemetry thresholds are violated.
 model Aircraft {
-  id                  String               @id @default(uuid())
-  tailNumber          String               @unique @map("tail_number")
+  id                  String              @id @default(uuid())
+  tailNumber          String              @map("tail_number")
   make                String
   model               String
-  airworthinessStatus AirworthinessStatus  @default(FLIGHT_READY) @map("airworthiness_status")
-  createdAt           DateTime             @default(now()) @map("created_at")
-  updatedAt           DateTime             @updatedAt @map("updated_at")
+  airworthinessStatus AirworthinessStatus @default(FLIGHT_READY) @map("airworthiness_status")
+  organizationId      String              @map("organization_id")
+  organization        Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  homeBaseId          String              @map("home_base_id")
+  homeBase            Base                @relation(fields: [homeBaseId], references: [id])
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
 
-  // An aircraft can have many bookings, maintenance logs, and telemetry records.
   bookings         Booking[]
   maintenanceLogs  MaintenanceLog[]
   telemetryRecords Telemetry[]
 
+  @@unique([organizationId, tailNumber])
+  @@index([organizationId])
   @@map("aircraft")
 }
 
 /// Booking represents a scheduled time block during which a user has reserved
-/// a specific aircraft. The scheduling service enforces two invariants:
+/// a specific aircraft at a specific base. The scheduling service enforces
+/// two invariants:
 ///   1. No overlapping bookings for the same aircraft.
 ///   2. The aircraft must have a FLIGHT_READY status.
 model Booking {
-  id         String   @id @default(uuid())
-  startTime  DateTime @map("start_time")
-  endTime    DateTime @map("end_time")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  // Foreign keys establishing many-to-one relationships.
-  userId     String   @map("user_id")
-  user       User     @relation(fields: [userId], references: [id])
+  baseId String @map("base_id")
+  base   Base   @relation(fields: [baseId], references: [id])
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
 
   aircraftId String   @map("aircraft_id")
   aircraft   Aircraft @relation(fields: [aircraftId], references: [id])
 
+  @@index([baseId])
+  @@index([userId])
+  @@index([aircraftId])
   @@map("bookings")
 }
 
@@ -112,9 +179,12 @@ model MaintenanceLog {
   timestamp  DateTime @default(now())
   data       Json
 
-  aircraftId String   @map("aircraft_id")
-  aircraft   Aircraft @relation(fields: [aircraftId], references: [id])
+  aircraftId     String       @map("aircraft_id")
+  aircraft       Aircraft     @relation(fields: [aircraftId], references: [id])
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
   @@map("maintenance_logs")
 }
 
@@ -129,8 +199,11 @@ model Telemetry {
   timestamp  DateTime @default(now())
   data       Json
 
-  aircraftId String   @map("aircraft_id")
-  aircraft   Aircraft @relation(fields: [aircraftId], references: [id])
+  aircraftId     String       @map("aircraft_id")
+  aircraft       Aircraft     @relation(fields: [aircraftId], references: [id])
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
   @@map("telemetry")
 }

@@ -26,6 +26,9 @@ export class BookingType {
   @Field(() => Date, { description: 'Timestamp when the booking was created.' })
   createdAt: Date;
 
+  @Field(() => String, { description: 'UUID of the base where the flight originates.' })
+  baseId: string;
+
   @Field(() => String, { description: 'UUID of the user who made the booking.' })
   userId: string;
 

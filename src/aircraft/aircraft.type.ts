@@ -40,6 +40,12 @@ export class AircraftType {
   })
   airworthinessStatus: AirworthinessStatus;
 
+  @Field(() => String, { description: 'UUID of the organization this aircraft belongs to.' })
+  organizationId: string;
+
+  @Field(() => String, { description: 'UUID of the default home base for this aircraft.' })
+  homeBaseId: string;
+
   @Field(() => Date, { description: 'Timestamp when the aircraft record was created.' })
   createdAt: Date;
 

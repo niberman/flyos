@@ -104,6 +104,7 @@ export class BookingService {
       data: {
         userId,
         aircraftId: input.aircraftId,
+        baseId: input.baseId,
         startTime: new Date(input.startTime),
         endTime: new Date(input.endTime),
       },

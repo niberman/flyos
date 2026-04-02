@@ -12,7 +12,7 @@
 // ==========================================================================
 
 import { InputType, Field, registerEnumType } from '@nestjs/graphql';
-import { IsEmail, MinLength, IsEnum, IsOptional } from 'class-validator';
+import { IsEmail, MinLength, IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { Role } from '@prisma/client';
 
 // Register the Prisma Role enum with GraphQL so it appears in the schema
@@ -41,4 +41,8 @@ export class RegisterInput {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @Field(() => String, { description: 'UUID of the organization the user belongs to.' })
+  @IsUUID()
+  organizationId: string;
 }

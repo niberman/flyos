@@ -40,11 +40,38 @@ export class DevUserSeedService implements OnModuleInit {
     const passwordHash = await bcrypt.hash(password, 10);
 
     try {
+      // Ensure a dev organization and base exist for the seeded user.
+      let org = await this.prisma.organization.findUnique({
+        where: { slug: 'dev' },
+      });
+      if (!org) {
+        org = await this.prisma.organization.create({
+          data: { name: 'Dev Flight School', slug: 'dev' },
+        });
+        this.logger.log('Seeded dev organization "Dev Flight School".');
+      }
+
+      let base = await this.prisma.base.findFirst({
+        where: { organizationId: org.id },
+      });
+      if (!base) {
+        base = await this.prisma.base.create({
+          data: {
+            organizationId: org.id,
+            name: 'Dev Base',
+            icaoCode: 'KDEV',
+            timezone: 'America/Denver',
+          },
+        });
+        this.logger.log('Seeded dev base "Dev Base" (KDEV).');
+      }
+
       await this.prisma.user.create({
         data: {
           email,
           passwordHash,
           role: Role.DISPATCHER,
+          organizationId: org.id,
         },
       });
       this.logger.log(

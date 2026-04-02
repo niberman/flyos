@@ -6,7 +6,7 @@
 // ==========================================================================
 
 import { InputType, Field } from '@nestjs/graphql';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
 
 @InputType({ description: 'Input for adding a new aircraft to the fleet.' })
 export class CreateAircraftInput {
@@ -24,4 +24,12 @@ export class CreateAircraftInput {
   @IsNotEmpty()
   @IsString()
   model: string;
+
+  @Field(() => String, { description: 'UUID of the organization this aircraft belongs to.' })
+  @IsUUID()
+  organizationId: string;
+
+  @Field(() => String, { description: 'UUID of the default home base.' })
+  @IsUUID()
+  homeBaseId: string;
 }

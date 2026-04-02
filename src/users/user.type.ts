@@ -27,6 +27,9 @@ export class UserType {
   @Field(() => Role, { description: 'Role determining the user\'s access level.' })
   role: string;
 
+  @Field(() => String, { description: 'UUID of the organization this user belongs to.' })
+  organizationId: string;
+
   @Field(() => Date, { description: 'Timestamp when the user was created.' })
   createdAt: Date;
 

@@ -33,6 +33,8 @@ export class AircraftService {
         tailNumber: input.tailNumber,
         make: input.make,
         model: input.model,
+        organizationId: input.organizationId,
+        homeBaseId: input.homeBaseId,
       },
     });
   }

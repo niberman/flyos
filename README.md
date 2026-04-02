@@ -1,98 +1,343 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# FlyOS - Flight School Management System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A backend system for managing flight school operations: aircraft fleet tracking, flight booking with conflict detection, batch data ingestion, and predictive maintenance. Built with NestJS, GraphQL (Apollo), Prisma ORM, and PostgreSQL.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Architecture
 
-## Description
+FlyOS follows the **Model-View-Controller (MVC)** pattern:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Model** - Prisma schema (`prisma/schema.prisma`) + `PrismaService` for typed database access
+- **View** - GraphQL schema (auto-generated at `src/schema.gql`) defining the API contract
+- **Controller** - GraphQL resolvers handle requests, services contain business logic, guards enforce auth
 
-## Project setup
-
-```bash
-$ npm install
+```
+Client Request
+  → Apollo Server (GraphQL)
+    → JwtAuthGuard (verify token)
+      → RolesGuard (check RBAC)
+        → Resolver (controller)
+          → Service (business logic)
+            → PrismaService (model)
+              → PostgreSQL
 ```
 
-## Compile and run the project
+## Data Model
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```
+┌──────────┐     ┌───────────┐     ┌────────────┐
+│   User   │────<│  Booking  │>────│  Aircraft   │
+│          │     │           │     │             │
+│ id       │     │ id        │     │ id          │
+│ email    │     │ startTime │     │ tailNumber  │
+│ password │     │ endTime   │     │ make/model  │
+│ role     │     │ userId    │     │ airworthiness│
+└──────────┘     │ aircraftId│     └──────┬──────┘
+                 └───────────┘            │
+                              ┌───────────┴───────────┐
+                              │                       │
+                      ┌───────┴────────┐    ┌─────────┴───────┐
+                      │MaintenanceLog  │    │   Telemetry     │
+                      │                │    │                 │
+                      │ id             │    │ id              │
+                      │ timestamp      │    │ timestamp       │
+                      │ data (JSONB)   │    │ data (JSONB)    │
+                      │ aircraftId     │    │ aircraftId      │
+                      └────────────────┘    └─────────────────┘
 ```
 
-## Run tests
+### Enums
+
+| Enum | Values | Purpose |
+|------|--------|---------|
+| `Role` | `STUDENT`, `INSTRUCTOR`, `DISPATCHER` | User access level |
+| `AirworthinessStatus` | `FLIGHT_READY`, `GROUNDED` | Aircraft flight clearance |
+
+## Modules
+
+### Auth (`src/auth/`)
+
+JWT-based authentication with role-based access control.
+
+- **Register** - Creates user with bcrypt-hashed password, returns JWT
+- **Login** - Validates credentials, returns JWT
+- **JwtStrategy** - Passport strategy that extracts and verifies Bearer tokens
+- **JwtAuthGuard** - Protects resolvers; in dev mode, falls back to impersonating a real DB user
+- **RolesGuard** - Reads `@Roles()` decorator metadata and checks against `req.user.role`
+- **DevUserSeedService** - Seeds a DISPATCHER user on startup if the DB is empty (dev only)
+
+**Dev auth bypass** is enabled when `NODE_ENV != production`, `FLYOS_STRICT_AUTH != true`, and `FLYOS_DEV_MODE != false`. When active, requests without a valid JWT are automatically impersonated as a database user.
+
+### Aircraft (`src/aircraft/`)
+
+Fleet management with CRUD operations and airworthiness tracking.
+
+| Operation | Access | Description |
+|-----------|--------|-------------|
+| `aircraft` query | Any authenticated user | List all aircraft |
+| `createAircraft` mutation | DISPATCHER | Add aircraft to fleet |
+| `updateAircraftStatus` mutation | INSTRUCTOR, DISPATCHER | Manually change airworthiness status |
+
+### Booking (`src/booking/`)
+
+Flight scheduling with two safety invariants:
+
+1. **Airworthiness check** - Cannot book a GROUNDED aircraft
+2. **Overlap prevention** - Cannot double-book an aircraft for overlapping time blocks
+
+Overlap detection uses the interval formula: `existingStart < requestedEnd AND existingEnd > requestedStart`.
+
+| Operation | Access | Description |
+|-----------|--------|-------------|
+| `createBooking` mutation | Any authenticated user | Book an aircraft (userId from JWT) |
+| `bookings` query | INSTRUCTOR, DISPATCHER | List all bookings |
+| `myBookings` query | Any authenticated user | List own bookings |
+
+### Ingestion (`src/ingestion/`)
+
+Batch upload endpoints for maintenance logs and telemetry data. Both mutations:
+
+1. Validate that all referenced aircraft IDs exist
+2. Create records atomically in a Prisma transaction (all-or-nothing)
+
+| Operation | Access | Description |
+|-----------|--------|-------------|
+| `ingestMaintenanceLogs` mutation | INSTRUCTOR, DISPATCHER | Batch upload maintenance records |
+| `ingestTelemetry` mutation | INSTRUCTOR, DISPATCHER | Batch upload sensor data |
+
+### Maintenance (`src/maintenance/`)
+
+Predictive maintenance engine running as a cron job every 5 minutes.
+
+**Algorithm:**
+1. Query telemetry records from the last 5 minutes
+2. Check each record's JSONB `data` field against safety thresholds:
+   - Cylinder head temperature > **400 F** → ground aircraft
+   - Oil pressure < **30 PSI** → ground aircraft
+3. Batch-update all violating aircraft to `GROUNDED` status
+
+### Users (`src/users/`)
+
+| Operation | Access | Description |
+|-----------|--------|-------------|
+| `me` query | Any authenticated user | Get own profile |
+| `users` query | INSTRUCTOR, DISPATCHER | List all users |
+
+### Prisma (`src/prisma/`)
+
+Global database module. `PrismaService` extends `PrismaClient` using the `@prisma/adapter-pg` driver adapter with `DATABASE_URL` from environment. Connects on module init, disconnects on destroy.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js
+- PostgreSQL database
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `JWT_SECRET` | Yes | Secret key for signing JWTs |
+| `PORT` | No | Server port (default: 3000) |
+| `NODE_ENV` | No | Set to `production` to disable dev auth bypass |
+| `FLYOS_STRICT_AUTH` | No | Set to `true` to force JWT auth in non-prod |
+| `FLYOS_DEV_MODE` | No | Set to `false` to disable dev auth bypass |
+| `FLYOS_DEV_USER_ID` | No | UUID of user to impersonate in dev mode |
+| `FLYOS_DEV_USER_ROLE` | No | Role override for dev impersonation |
+| `FLYOS_DEV_SEED_EMAIL` | No | Email for auto-seeded dev user (default: `dev@flyos.local`) |
+| `FLYOS_DEV_SEED_PASSWORD` | No | Password for auto-seeded dev user (default: `flyosdev`) |
+
+### Setup
 
 ```bash
-# unit tests
-$ npm run test
+# Install dependencies
+npm install
 
-# e2e tests
-$ npm run test:e2e
+# Run database migrations
+npx prisma migrate deploy
 
-# test coverage
-$ npm run test:cov
+# Generate Prisma client
+npx prisma generate
+
+# Start in development mode (watch)
+npm run start:dev
+
+# Start in production
+npm run start:prod
 ```
 
-## Deployment
+### GraphQL Playground
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+With the server running, open `http://localhost:3000/graphql` in a browser to access the Apollo Sandbox / GraphQL Playground.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## API Examples
+
+### Register a user
+
+```graphql
+mutation {
+  register(input: {
+    email: "pilot@flyos.com"
+    password: "secure123"
+    role: STUDENT
+  }) {
+    access_token
+  }
+}
+```
+
+### Login
+
+```graphql
+mutation {
+  login(input: {
+    email: "pilot@flyos.com"
+    password: "secure123"
+  }) {
+    access_token
+  }
+}
+```
+
+### Create an aircraft (DISPATCHER only)
+
+```graphql
+mutation {
+  createAircraft(input: {
+    tailNumber: "N12345"
+    make: "Cessna"
+    model: "172 Skyhawk"
+  }) {
+    id
+    tailNumber
+    airworthinessStatus
+  }
+}
+```
+
+### Book a flight
+
+```graphql
+mutation {
+  createBooking(input: {
+    aircraftId: "<aircraft-uuid>"
+    startTime: "2026-06-01T10:00:00Z"
+    endTime: "2026-06-01T12:00:00Z"
+  }) {
+    id
+    startTime
+    endTime
+    aircraft { tailNumber }
+  }
+}
+```
+
+### Ingest telemetry data (INSTRUCTOR/DISPATCHER)
+
+```graphql
+mutation {
+  ingestTelemetry(input: {
+    entries: [
+      {
+        aircraftId: "<aircraft-uuid>"
+        data: { oilPressure: 45, cylinderHeadTemperature: 380 }
+      }
+    ]
+  }) {
+    id
+    timestamp
+    data
+  }
+}
+```
+
+## Testing
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Run unit tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:cov
+
+# Run e2e tests
+npm run test:e2e
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Tests mock `PrismaService` to validate business logic in isolation. Test suites exist for all database-interacting services:
 
-## Resources
+- `prisma.service.spec.ts` - Connection lifecycle, DATABASE_URL validation
+- `aircraft.service.spec.ts` - CRUD operations, status updates
+- `booking.service.spec.ts` - Airworthiness checks, overlap detection, booking creation
+- `ingestion.service.spec.ts` - Batch validation, transactional creation
+- `maintenance.service.spec.ts` - Threshold evaluation, grounding logic
+- `auth.service.spec.ts` - Registration, login, password hashing, JWT issuance
+- `users.service.spec.ts` - User lookup
 
-Check out a few resources that may come in handy when working with NestJS:
+## Project Structure
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```
+src/
+├── main.ts                          # Application entry point
+├── app.module.ts                    # Root module (wires everything together)
+├── app.controller.ts                # Serves demo UI at GET /
+├── schema.gql                       # Auto-generated GraphQL schema
+├── prisma/
+│   ├── prisma.module.ts             # Global database module
+│   └── prisma.service.ts            # PrismaClient with pg adapter
+├── auth/
+│   ├── auth.module.ts               # Auth module (JWT, Passport, guards)
+│   ├── auth.resolver.ts             # register/login mutations
+│   ├── auth.service.ts              # Credential validation, JWT signing
+│   ├── dev-auth.config.ts           # Dev bypass rules
+│   ├── dev-user-seed.service.ts     # Auto-seeds dev user on empty DB
+│   ├── strategies/
+│   │   └── jwt.strategy.ts          # Passport JWT extraction/verification
+│   ├── guards/
+│   │   ├── jwt-auth.guard.ts        # Auth guard with dev bypass
+│   │   └── roles.guard.ts           # RBAC guard
+│   ├── decorators/
+│   │   ├── roles.decorator.ts       # @Roles() metadata decorator
+│   │   └── current-user.decorator.ts # @CurrentUser() param decorator
+│   └── dto/
+│       ├── register.input.ts
+│       ├── login.input.ts
+│       └── auth-response.type.ts
+├── users/
+│   ├── users.module.ts
+│   ├── users.resolver.ts            # me, users queries
+│   ├── users.service.ts             # User lookup logic
+│   └── user.type.ts
+├── aircraft/
+│   ├── aircraft.module.ts
+│   ├── aircraft.resolver.ts         # aircraft query, create/update mutations
+│   ├── aircraft.service.ts          # Fleet CRUD, status updates
+│   ├── aircraft.type.ts
+│   └── dto/
+│       └── create-aircraft.input.ts
+├── booking/
+│   ├── booking.module.ts
+│   ├── booking.resolver.ts          # createBooking, bookings, myBookings
+│   ├── booking.service.ts           # Overlap detection, airworthiness check
+│   ├── booking.type.ts
+│   └── dto/
+│       └── create-booking.input.ts
+├── ingestion/
+│   ├── ingestion.module.ts
+│   ├── ingestion.resolver.ts        # Batch upload mutations
+│   ├── ingestion.service.ts         # Validation + transactional creation
+│   ├── maintenance-log.type.ts
+│   ├── telemetry.type.ts
+│   └── dto/
+│       ├── batch-maintenance.input.ts
+│       └── batch-telemetry.input.ts
+└── maintenance/
+    ├── maintenance.module.ts
+    └── maintenance.service.ts        # Predictive maintenance cron job
+prisma/
+└── schema.prisma                     # Database schema definition
+```
