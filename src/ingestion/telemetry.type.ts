@@ -13,16 +13,21 @@ import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { GraphQLJSON } from 'graphql-type-json';
 
 @ObjectType('Telemetry', {
-  description: 'A telemetry data point containing sensor readings for an aircraft.',
+  description:
+    'A telemetry data point containing sensor readings for an aircraft.',
 })
 export class TelemetryType {
-  @Field(() => ID, { description: 'Unique identifier for the telemetry record.' })
+  @Field(() => ID, {
+    description: 'Unique identifier for the telemetry record.',
+  })
   id: string;
 
   @Field(() => String, { description: 'UUID of the associated aircraft.' })
   aircraftId: string;
 
-  @Field(() => Date, { description: 'Timestamp when the sensor data was recorded.' })
+  @Field(() => Date, {
+    description: 'Timestamp when the sensor data was recorded.',
+  })
   timestamp: Date;
 
   @Field(() => GraphQLJSON, {

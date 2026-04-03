@@ -1,11 +1,11 @@
 /**
  * FlyOS ribbon scheduler — read-only day board (aircraft + instructor rows).
- * Uses same JWT sessionStorage key as public/app.js.
+ * Optional JWT: sessionStorage key flyos_demo_jwt (set via GraphQL login).
  */
 
 const TOKEN_KEY = 'flyos_demo_jwt';
-const HOUR_START = 8;
-const HOUR_END = 20;
+const HOUR_START = 0;
+const HOUR_END = 24;
 const PX_PER_HOUR = 72;
 const ROW_H = 52;
 

@@ -95,12 +95,16 @@ export class AircraftResolver {
   }
 
   @ResolveField(() => Number)
-  hobbsHours(@Parent() aircraft: { hobbsHours: { toString(): string } | number }) {
+  hobbsHours(
+    @Parent() aircraft: { hobbsHours: { toString(): string } | number },
+  ) {
     return Number(aircraft.hobbsHours);
   }
 
   @ResolveField(() => Number)
-  tachHours(@Parent() aircraft: { tachHours: { toString(): string } | number }) {
+  tachHours(
+    @Parent() aircraft: { tachHours: { toString(): string } | number },
+  ) {
     return Number(aircraft.tachHours);
   }
 

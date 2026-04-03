@@ -44,7 +44,9 @@ export class MaintenanceLogEntry {
   data: any;
 }
 
-@InputType({ description: 'Input for batch uploading maintenance log records.' })
+@InputType({
+  description: 'Input for batch uploading maintenance log records.',
+})
 export class BatchMaintenanceInput {
   @Field(() => [MaintenanceLogEntry], {
     description: 'Array of maintenance log entries to ingest.',

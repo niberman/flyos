@@ -1,8 +1,6 @@
 // ==========================================================================
 // AppController — Unit Tests
 // ==========================================================================
-// Tests the root controller that serves the demo UI at GET /.
-// ==========================================================================
 
 import { AppController } from './app.controller';
 import { join } from 'path';
@@ -14,16 +12,16 @@ describe('AppController', () => {
     controller = new AppController();
   });
 
-  describe('sendDemoRoot', () => {
-    it('sends the public/index.html file', () => {
+  describe('sendRibbonRoot', () => {
+    it('sends the public/scheduler.html file', () => {
       const mockRes = {
         sendFile: jest.fn(),
       };
 
-      controller.sendDemoRoot(mockRes as any);
+      controller.sendRibbonRoot(mockRes as any);
 
       expect(mockRes.sendFile).toHaveBeenCalledWith(
-        join(process.cwd(), 'public', 'index.html'),
+        join(process.cwd(), 'public', 'scheduler.html'),
       );
     });
 
@@ -32,7 +30,7 @@ describe('AppController', () => {
         sendFile: jest.fn(),
       };
 
-      controller.sendDemoRoot(mockRes as any);
+      controller.sendRibbonRoot(mockRes as any);
 
       expect(mockRes.sendFile).toHaveBeenCalledTimes(1);
     });

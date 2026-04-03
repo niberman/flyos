@@ -30,11 +30,15 @@ __decorate([
     __metadata("design:type", String)
 ], UserType.prototype, "email", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => client_1.Role, { description: 'Role determining the user\'s access level.' }),
+    (0, graphql_1.Field)(() => client_1.Role, {
+        description: "Role determining the user's access level.",
+    }),
     __metadata("design:type", String)
 ], UserType.prototype, "role", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'UUID of the organization this user belongs to.' }),
+    (0, graphql_1.Field)(() => String, {
+        description: 'UUID of the organization this user belongs to.',
+    }),
     __metadata("design:type", String)
 ], UserType.prototype, "organizationId", void 0);
 __decorate([
@@ -42,7 +46,9 @@ __decorate([
     __metadata("design:type", Date)
 ], UserType.prototype, "createdAt", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'Timestamp of the last update to the user record.' }),
+    (0, graphql_1.Field)(() => Date, {
+        description: 'Timestamp of the last update to the user record.',
+    }),
     __metadata("design:type", Date)
 ], UserType.prototype, "updatedAt", void 0);
 exports.UserType = UserType = __decorate([

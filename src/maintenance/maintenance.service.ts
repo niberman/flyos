@@ -140,7 +140,10 @@ export class MaintenanceService {
     const alerts: Alert[] = [];
 
     for (const r of records) {
-      const violations = evaluateTelemetryViolations(r.data, DEFAULT_THRESHOLDS);
+      const violations = evaluateTelemetryViolations(
+        r.data,
+        DEFAULT_THRESHOLDS,
+      );
       for (const v of violations) {
         alerts.push({
           aircraftId: r.aircraftId,

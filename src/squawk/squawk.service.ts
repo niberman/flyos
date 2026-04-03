@@ -2,7 +2,11 @@
 // SquawkService — Relational squawks and airworthiness side effects
 // ==========================================================================
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AirworthinessStatus, SquawkStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -77,10 +81,7 @@ export class SquawkService {
     return squawk;
   }
 
-  async listForOrganization(
-    organizationId: string,
-    aircraftId?: string,
-  ) {
+  async listForOrganization(organizationId: string, aircraftId?: string) {
     return this.prisma.squawk.findMany({
       where: {
         organizationId,

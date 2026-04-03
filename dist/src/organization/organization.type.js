@@ -20,7 +20,9 @@ let OrganizationType = class OrganizationType {
 };
 exports.OrganizationType = OrganizationType;
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'Unique identifier (UUID) for the organization.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        description: 'Unique identifier (UUID) for the organization.',
+    }),
     __metadata("design:type", String)
 ], OrganizationType.prototype, "id", void 0);
 __decorate([
@@ -28,15 +30,21 @@ __decorate([
     __metadata("design:type", String)
 ], OrganizationType.prototype, "name", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'URL-safe slug for subdomain or URL routing.' }),
+    (0, graphql_1.Field)(() => String, {
+        description: 'URL-safe slug for subdomain or URL routing.',
+    }),
     __metadata("design:type", String)
 ], OrganizationType.prototype, "slug", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'Timestamp when the organization was created.' }),
+    (0, graphql_1.Field)(() => Date, {
+        description: 'Timestamp when the organization was created.',
+    }),
     __metadata("design:type", Date)
 ], OrganizationType.prototype, "createdAt", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'Timestamp of the last update to the organization record.' }),
+    (0, graphql_1.Field)(() => Date, {
+        description: 'Timestamp of the last update to the organization record.',
+    }),
     __metadata("design:type", Date)
 ], OrganizationType.prototype, "updatedAt", void 0);
 exports.OrganizationType = OrganizationType = __decorate([

@@ -25,7 +25,10 @@ export class CreateAircraftInput {
   @IsString()
   model: string;
 
-  @Field(() => ID, { description: 'UUID of the default home base (must belong to your organization).' })
+  @Field(() => ID, {
+    description:
+      'UUID of the default home base (must belong to your organization).',
+  })
   @IsUUID()
   homeBaseId: string;
 }

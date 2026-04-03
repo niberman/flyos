@@ -19,9 +19,18 @@ export type TelemetryThresholdViolation = {
   threshold: number;
 };
 
+/** Shape of threshold config (numeric bounds; allows custom overrides in tests). */
+export type TelemetryThresholdsConfig = {
+  cylinderHeadTemp: { max: number; unit: 'F' };
+  oilPressure: { min: number; unit: 'PSI' };
+  oilTemperature: { max: number; unit: 'F' };
+  egtSpread: { max: number; unit: 'F' };
+  fuelFlow: { min: number; max: number; unit: 'GPH' };
+};
+
 export function evaluateTelemetryViolations(
   sensorData: unknown,
-  thresholds: typeof DEFAULT_THRESHOLDS = DEFAULT_THRESHOLDS,
+  thresholds: TelemetryThresholdsConfig = DEFAULT_THRESHOLDS,
 ): TelemetryThresholdViolation[] {
   if (sensorData === null || typeof sensorData !== 'object') {
     return [];

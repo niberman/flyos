@@ -49,7 +49,9 @@ export class BookingResolver {
   @ResolveField(() => SchedulableResourceType, { nullable: true })
   schedulableResource(
     @Parent()
-    booking: { schedulableResource?: SchedulableResourceType | null },
+    booking: {
+      schedulableResource?: SchedulableResourceType | null;
+    },
   ): SchedulableResourceType | null {
     return booking.schedulableResource ?? null;
   }
@@ -123,7 +125,8 @@ export class BookingResolver {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR, Role.DISPATCHER)
   @Query(() => [BookingType], {
-    description: 'List all bookings in the organization. INSTRUCTOR and DISPATCHER only.',
+    description:
+      'List all bookings in the organization. INSTRUCTOR and DISPATCHER only.',
   })
   async bookings(
     @CurrentUser() user: { userId: string; role: string },
@@ -155,7 +158,8 @@ export class BookingResolver {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR, Role.DISPATCHER)
   @Query(() => [BookingType], {
-    description: 'Bookings at a specific base, optionally filtered by date range.',
+    description:
+      'Bookings at a specific base, optionally filtered by date range.',
   })
   async bookingsByBase(
     @CurrentUser() user: { userId: string; role: string },
@@ -173,7 +177,8 @@ export class BookingResolver {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR, Role.DISPATCHER)
   @Query(() => [BookingType], {
-    description: 'Bookings for a specific aircraft, optionally filtered by date range.',
+    description:
+      'Bookings for a specific aircraft, optionally filtered by date range.',
   })
   async bookingsByAircraft(
     @CurrentUser() user: { userId: string; role: string },

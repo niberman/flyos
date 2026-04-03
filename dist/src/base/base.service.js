@@ -40,6 +40,24 @@ let BaseService = class BaseService {
             where: { id, organizationId },
         });
     }
+    async create(input) {
+        const organizationId = this.requireOrganizationId();
+        const icaoCode = input.icaoCode.trim().toUpperCase();
+        const duplicate = await this.prisma.base.findFirst({
+            where: { organizationId, icaoCode },
+        });
+        if (duplicate) {
+            throw new common_1.ConflictException(`A base with ICAO code ${icaoCode} already exists in your organization.`);
+        }
+        return this.prisma.base.create({
+            data: {
+                organizationId,
+                name: input.name.trim(),
+                icaoCode,
+                timezone: input.timezone.trim(),
+            },
+        });
+    }
 };
 exports.BaseService = BaseService;
 exports.BaseService = BaseService = __decorate([

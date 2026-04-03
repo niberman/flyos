@@ -24,7 +24,8 @@ export class Alert {
   value: number;
 
   @Field(() => Float, {
-    description: 'Threshold limit that was exceeded (min or max as applicable).',
+    description:
+      'Threshold limit that was exceeded (min or max as applicable).',
   })
   threshold: number;
 

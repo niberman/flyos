@@ -101,7 +101,10 @@ describe('BookingResolver', () => {
 
       const result = await resolver.bookings(testUser);
 
-      expect(mockBookingService.findAll).toHaveBeenCalledWith('org-1', undefined);
+      expect(mockBookingService.findAll).toHaveBeenCalledWith(
+        'org-1',
+        undefined,
+      );
       expect(result).toEqual(bookings);
     });
 
@@ -111,7 +114,10 @@ describe('BookingResolver', () => {
 
       await resolver.bookings(testUser, 'base-x');
 
-      expect(mockBookingService.findAll).toHaveBeenCalledWith('org-1', 'base-x');
+      expect(mockBookingService.findAll).toHaveBeenCalledWith(
+        'org-1',
+        'base-x',
+      );
     });
   });
 

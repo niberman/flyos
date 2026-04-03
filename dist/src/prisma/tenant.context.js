@@ -22,7 +22,7 @@ let TenantContext = class TenantContext {
     _organizationId = null;
     _baseId = null;
     get organizationId() {
-        return (exports.tenantStorage.getStore()?.organizationId ?? this._organizationId);
+        return exports.tenantStorage.getStore()?.organizationId ?? this._organizationId;
     }
     get baseId() {
         return exports.tenantStorage.getStore()?.baseId ?? this._baseId;

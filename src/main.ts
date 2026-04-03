@@ -49,19 +49,20 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const publicDir = join(process.cwd(), 'public');
 
-  // Bind /scheduler on the underlying Express instance before Nest's router so
-  // the path is never shadowed by other HTTP layers (fixes "Cannot GET /scheduler").
+  // Bind static HTML before Nest's router so paths are not shadowed by other layers.
   const expressApp = express();
-  expressApp.get('/scheduler', (_req, res) => {
+  const sendScheduler = (_req: express.Request, res: express.Response) => {
     res.sendFile(join(publicDir, 'scheduler.html'));
-  });
+  };
+  expressApp.get('/', sendScheduler);
+  expressApp.get('/scheduler', sendScheduler);
 
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule,
     new ExpressAdapter(expressApp),
   );
 
-  // Static assets for the disposable demo UI (app.js, scheduler.css, etc.).
+  // Static assets for the ribbon UI (scheduler.css, scheduler.js).
   app.useStaticAssets(publicDir);
 
   // Enable the global ValidationPipe to automatically validate all incoming
@@ -81,4 +82,4 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 }
-bootstrap();
+void bootstrap();

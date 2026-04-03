@@ -27,7 +27,9 @@ export class SquawkResolver {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.INSTRUCTOR, Role.DISPATCHER)
-  @Query(() => [SquawkType], { description: 'List squawks for the organization.' })
+  @Query(() => [SquawkType], {
+    description: 'List squawks for the organization.',
+  })
   async squawks(
     @CurrentUser() user: { userId: string },
     @Args('aircraftId', { type: () => ID, nullable: true }) aircraftId?: string,
@@ -48,7 +50,11 @@ export class SquawkResolver {
     @Args('title', { type: () => String }) title: string,
     @Args('description', { type: () => String, nullable: true })
     description?: string,
-    @Args('groundsAircraft', { type: () => Boolean, nullable: true, defaultValue: false })
+    @Args('groundsAircraft', {
+      type: () => Boolean,
+      nullable: true,
+      defaultValue: false,
+    })
     groundsAircraft?: boolean,
   ): Promise<SquawkType> {
     const organizationId = await this.requireOrg(user.userId);

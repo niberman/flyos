@@ -12,7 +12,8 @@ import { BookingParticipantType } from './booking-participant.type';
 
 registerEnumType(BookingStatus, {
   name: 'BookingStatus',
-  description: 'Booking lifecycle: scheduled, dispatched, in progress, completed, or cancelled.',
+  description:
+    'Booking lifecycle: scheduled, dispatched, in progress, completed, or cancelled.',
 });
 
 @ObjectType('Booking', {
@@ -46,7 +47,9 @@ export class BookingType {
   @Field(() => ID, { description: 'UUID of the base where the block occurs.' })
   baseId: string;
 
-  @Field(() => String, { description: 'UUID of the organizing user (renter / booker).' })
+  @Field(() => String, {
+    description: 'UUID of the organizing user (renter / booker).',
+  })
   userId: string;
 
   @Field(() => ID, { description: 'Schedulable resource UUID.' })

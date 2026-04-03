@@ -30,7 +30,9 @@ export class PilotComplianceService {
       where: { id: ctx.renterUserId, organizationId },
     });
     if (!renter) {
-      throw new BadRequestException('Renter user not found in your organization.');
+      throw new BadRequestException(
+        'Renter user not found in your organization.',
+      );
     }
 
     const med = await this.prisma.pilotMedical.findFirst({

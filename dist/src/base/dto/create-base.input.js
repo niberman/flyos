@@ -9,42 +9,42 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateAircraftInput = void 0;
+exports.CreateBaseInput = void 0;
 const graphql_1 = require("@nestjs/graphql");
 const class_validator_1 = require("class-validator");
-let CreateAircraftInput = class CreateAircraftInput {
-    tailNumber;
-    make;
-    model;
-    homeBaseId;
+let CreateBaseInput = class CreateBaseInput {
+    name;
+    icaoCode;
+    timezone;
 };
-exports.CreateAircraftInput = CreateAircraftInput;
+exports.CreateBaseInput = CreateBaseInput;
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'FAA tail number (e.g., N12345).' }),
+    (0, graphql_1.Field)(() => String, { description: 'Display name of the base.' }),
     (0, class_validator_1.IsNotEmpty)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateAircraftInput.prototype, "tailNumber", void 0);
+], CreateBaseInput.prototype, "name", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'Aircraft manufacturer.' }),
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateAircraftInput.prototype, "make", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => String, { description: 'Aircraft model designation.' }),
-    (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateAircraftInput.prototype, "model", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, {
-        description: 'UUID of the default home base (must belong to your organization).',
+    (0, graphql_1.Field)(() => String, {
+        description: 'ICAO airport code (e.g., KAPA). Must be unique per organization.',
     }),
-    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(3, 4),
+    (0, class_validator_1.Matches)(/^[A-Za-z0-9]+$/, {
+        message: 'icaoCode must be 3–4 alphanumeric characters.',
+    }),
     __metadata("design:type", String)
-], CreateAircraftInput.prototype, "homeBaseId", void 0);
-exports.CreateAircraftInput = CreateAircraftInput = __decorate([
-    (0, graphql_1.InputType)({ description: 'Input for adding a new aircraft to the fleet.' })
-], CreateAircraftInput);
-//# sourceMappingURL=create-aircraft.input.js.map
+], CreateBaseInput.prototype, "icaoCode", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => String, {
+        description: 'IANA timezone (e.g., America/Denver).',
+    }),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateBaseInput.prototype, "timezone", void 0);
+exports.CreateBaseInput = CreateBaseInput = __decorate([
+    (0, graphql_1.InputType)({ description: 'Input for creating a new base in your organization.' })
+], CreateBaseInput);
+//# sourceMappingURL=create-base.input.js.map

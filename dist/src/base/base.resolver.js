@@ -17,8 +17,12 @@ const graphql_1 = require("@nestjs/graphql");
 const common_1 = require("@nestjs/common");
 const base_type_1 = require("./base.type");
 const base_service_1 = require("./base.service");
+const create_base_input_1 = require("./dto/create-base.input");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const roles_guard_1 = require("../auth/guards/roles.guard");
+const roles_decorator_1 = require("../auth/decorators/roles.decorator");
 const current_user_decorator_1 = require("../auth/decorators/current-user.decorator");
+const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
 const tenant_context_1 = require("../prisma/tenant.context");
 let BaseResolver = class BaseResolver {
@@ -44,16 +48,34 @@ let BaseResolver = class BaseResolver {
         await this.bindTenantContext(user);
         return this.baseService.findAll();
     }
+    async createBase(user, input) {
+        await this.bindTenantContext(user);
+        return this.baseService.create(input);
+    }
 };
 exports.BaseResolver = BaseResolver;
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, graphql_1.Query)(() => [base_type_1.BaseType], { description: 'List all bases in the organization.' }),
+    (0, graphql_1.Query)(() => [base_type_1.BaseType], {
+        description: 'List all bases in the organization.',
+    }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], BaseResolver.prototype, "bases", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(client_1.Role.DISPATCHER),
+    (0, graphql_1.Mutation)(() => base_type_1.BaseType, {
+        description: 'Create a new base. DISPATCHER only.',
+    }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, graphql_1.Args)('input')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_base_input_1.CreateBaseInput]),
+    __metadata("design:returntype", Promise)
+], BaseResolver.prototype, "createBase", null);
 exports.BaseResolver = BaseResolver = __decorate([
     (0, graphql_1.Resolver)(() => base_type_1.BaseType),
     __metadata("design:paramtypes", [base_service_1.BaseService,

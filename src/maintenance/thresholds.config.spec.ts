@@ -169,7 +169,9 @@ describe('evaluateTelemetryViolations', () => {
   it('does not flag fuel flow within range', () => {
     expect(
       evaluateTelemetryViolations({
-        fuelFlow: (DEFAULT_THRESHOLDS.fuelFlow.min + DEFAULT_THRESHOLDS.fuelFlow.max) / 2,
+        fuelFlow:
+          (DEFAULT_THRESHOLDS.fuelFlow.min + DEFAULT_THRESHOLDS.fuelFlow.max) /
+          2,
       }),
     ).toEqual([]);
   });

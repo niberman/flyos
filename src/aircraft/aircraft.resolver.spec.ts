@@ -7,10 +7,7 @@
 // ==========================================================================
 
 import { Test } from '@nestjs/testing';
-import {
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { AirworthinessStatus } from '@prisma/client';
 import { AircraftResolver } from './aircraft.resolver';
 import { AircraftService } from './aircraft.service';
@@ -140,7 +137,10 @@ describe('AircraftResolver', () => {
       mockPrisma.base.findFirst.mockResolvedValue(null);
 
       await expect(
-        resolver.homeBase({ homeBaseId: 'gone', organizationId: 'org-1' } as any),
+        resolver.homeBase({
+          homeBaseId: 'gone',
+          organizationId: 'org-1',
+        } as any),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -179,10 +179,9 @@ describe('AircraftResolver', () => {
         AirworthinessStatus.GROUNDED,
       );
 
-      expect(mockAircraftService.updateAirworthinessStatus).toHaveBeenCalledWith(
-        'ac-1',
-        AirworthinessStatus.GROUNDED,
-      );
+      expect(
+        mockAircraftService.updateAirworthinessStatus,
+      ).toHaveBeenCalledWith('ac-1', AirworthinessStatus.GROUNDED);
       expect(result).toEqual(updated);
     });
   });

@@ -84,7 +84,10 @@ function createTenantExtension(getOrganizationId) {
                         op.where = mergeWhere(op.where, { organizationId });
                     }
                     if (operation === 'create') {
-                        op.data = { ...op.data, organizationId };
+                        op.data = {
+                            ...op.data,
+                            organizationId,
+                        };
                     }
                     if (operation === 'createMany') {
                         const data = op.data;

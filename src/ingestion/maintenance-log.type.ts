@@ -13,7 +13,9 @@ import { GraphQLJSON } from 'graphql-type-json';
   description: 'A maintenance log entry linked to a specific aircraft.',
 })
 export class MaintenanceLogType {
-  @Field(() => ID, { description: 'Unique identifier for the maintenance log.' })
+  @Field(() => ID, {
+    description: 'Unique identifier for the maintenance log.',
+  })
   id: string;
 
   @Field(() => String, { description: 'UUID of the associated aircraft.' })
@@ -23,7 +25,8 @@ export class MaintenanceLogType {
   timestamp: Date;
 
   @Field(() => GraphQLJSON, {
-    description: 'Raw JSONB maintenance log data as received from batch upload.',
+    description:
+      'Raw JSONB maintenance log data as received from batch upload.',
   })
   data: any;
 }

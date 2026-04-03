@@ -26,4 +26,27 @@ export type TelemetryThresholdViolation = {
     value: number;
     threshold: number;
 };
-export declare function evaluateTelemetryViolations(sensorData: unknown, thresholds?: typeof DEFAULT_THRESHOLDS): TelemetryThresholdViolation[];
+export type TelemetryThresholdsConfig = {
+    cylinderHeadTemp: {
+        max: number;
+        unit: 'F';
+    };
+    oilPressure: {
+        min: number;
+        unit: 'PSI';
+    };
+    oilTemperature: {
+        max: number;
+        unit: 'F';
+    };
+    egtSpread: {
+        max: number;
+        unit: 'F';
+    };
+    fuelFlow: {
+        min: number;
+        max: number;
+        unit: 'GPH';
+    };
+};
+export declare function evaluateTelemetryViolations(sensorData: unknown, thresholds?: TelemetryThresholdsConfig): TelemetryThresholdViolation[];

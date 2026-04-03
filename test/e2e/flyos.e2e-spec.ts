@@ -109,7 +109,6 @@ const databasePrerequisite = resolveDatabasePrerequisite();
 const describeDatabaseE2E = databasePrerequisite.ok ? describe : describe.skip;
 
 if (!databasePrerequisite.ok) {
-  // eslint-disable-next-line no-console
   console.warn(
     `[test:e2e] Skipping FlyOS API integration suite: ${databasePrerequisite.reason}`,
   );
@@ -211,6 +210,11 @@ describeDatabaseE2E('FlyOS API (e2e)', () => {
   }
 
   beforeAll(async () => {
+    if (!databasePrerequisite.ok) {
+      throw new Error('DATABASE_URL prerequisite missing inside beforeAll.');
+    }
+    const databaseUrl = databasePrerequisite.url;
+
     process.env.FLYOS_STRICT_AUTH = 'true';
     if (!process.env.JWT_SECRET?.trim()) {
       process.env.JWT_SECRET = 'e2e-test-jwt-secret';
@@ -227,7 +231,6 @@ describeDatabaseE2E('FlyOS API (e2e)', () => {
       stdio: 'inherit',
     });
 
-    const databaseUrl = process.env.DATABASE_URL.trim();
     adminPrisma = new PrismaClient({
       adapter: new PrismaPg(databaseUrl),
     });
@@ -467,17 +470,80 @@ describeDatabaseE2E('FlyOS API (e2e)', () => {
     expect(foreignBase.body.errors?.length).toBeGreaterThan(0);
   });
 
+  it('2b — bases: dispatcher createBase; duplicate ICAO conflicts; student forbidden', async () => {
+    const created = await gql(
+      `mutation CB($input: CreateBaseInput!) {
+        createBase(input: $input) { id name icaoCode timezone }
+      }`,
+      {
+        input: {
+          name: 'E2E Satellite',
+          icaoCode: 'KE2E',
+          timezone: 'America/Chicago',
+        },
+      },
+      dispatcher1Token,
+    ).expect(200);
+
+    expect(created.body.errors).toBeUndefined();
+    expect(created.body.data.createBase.icaoCode).toBe('KE2E');
+    expect(created.body.data.createBase.name).toBe('E2E Satellite');
+
+    const dup = await gql(
+      `mutation CB($input: CreateBaseInput!) {
+        createBase(input: $input) { id }
+      }`,
+      {
+        input: {
+          name: 'Other Name',
+          icaoCode: 'kapa',
+          timezone: 'America/Denver',
+        },
+      },
+      dispatcher1Token,
+    ).expect(200);
+
+    expect(dup.body.errors?.length).toBeGreaterThan(0);
+
+    const denied = await gql(
+      `mutation CB($input: CreateBaseInput!) {
+        createBase(input: $input) { id }
+      }`,
+      {
+        input: {
+          name: 'Nope',
+          icaoCode: 'KNO1',
+          timezone: 'UTC',
+        },
+      },
+      student1Token,
+    ).expect(200);
+
+    expect(denied.body.errors?.length).toBeGreaterThan(0);
+
+    const listed = await gql(
+      `query { bases { icaoCode } }`,
+      undefined,
+      dispatcher1Token,
+    ).expect(200);
+
+    expect(listed.body.errors).toBeUndefined();
+    const codes = listed.body.data.bases.map(
+      (b: { icaoCode: string }) => b.icaoCode,
+    );
+    expect(codes).toContain('KE2E');
+    expect(codes).toContain('KAPA');
+  });
+
   it('3 — booking: create, overlap fails, second aircraft ok, dispatcher vs student queries, cancel', async () => {
     const studentRow = await adminPrisma.user.findUnique({
       where: { email: 'e2e.student1@flyos.test' },
     });
     expect(studentRow).toBeTruthy();
-    await seedPilotComplianceForUser(
-      adminPrisma,
-      studentRow!.id,
-      org1Id,
-      [aircraftTest1Id, aircraftTest2Id],
-    );
+    await seedPilotComplianceForUser(adminPrisma, studentRow!.id, org1Id, [
+      aircraftTest1Id,
+      aircraftTest2Id,
+    ]);
 
     const t0 = tomorrowIsoUtc(10, 0);
     const t1 = tomorrowIsoUtc(12, 0);
@@ -577,9 +643,11 @@ describeDatabaseE2E('FlyOS API (e2e)', () => {
     expect(cancel.body.errors).toBeUndefined();
     expect(cancel.body.data.cancelBooking).toBe(true);
 
-    const after = await gql(`query { myBookings { id } }`, undefined, student1Token).expect(
-      200,
-    );
+    const after = await gql(
+      `query { myBookings { id } }`,
+      undefined,
+      student1Token,
+    ).expect(200);
     expect(after.body.data.myBookings.length).toBe(1);
   });
 
@@ -802,12 +870,11 @@ describeDatabaseE2E('FlyOS API (e2e)', () => {
     const studentRow6 = await adminPrisma.user.findUnique({
       where: { email: 'e2e.student1@flyos.test' },
     });
-    await seedPilotComplianceForUser(
-      adminPrisma,
-      studentRow6!.id,
-      org1Id,
-      [aircraftTest1Id, aircraftTest2Id, aircraftTest3Id],
-    );
+    await seedPilotComplianceForUser(adminPrisma, studentRow6!.id, org1Id, [
+      aircraftTest1Id,
+      aircraftTest2Id,
+      aircraftTest3Id,
+    ]);
 
     const book3 = await gql(
       `mutation B($input: CreateBookingInput!) {
@@ -867,8 +934,6 @@ describeDatabaseE2E('FlyOS API (e2e)', () => {
     const allTails = fleet.body.data.aircraft.map(
       (x: { tailNumber: string }) => x.tailNumber,
     );
-    expect(allTails.sort()).toEqual(
-      ['N-TEST1', 'N-TEST2', 'N-TEST3'].sort(),
-    );
+    expect(allTails.sort()).toEqual(['N-TEST1', 'N-TEST2', 'N-TEST3'].sort());
   });
 });

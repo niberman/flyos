@@ -162,7 +162,9 @@ describe('BookingService', () => {
       };
 
       mockPrisma.$transaction.mockImplementation(
-        async (fn: (tx: { booking: { create: jest.Mock } }) => Promise<unknown>) => {
+        async (
+          fn: (tx: { booking: { create: jest.Mock } }) => Promise<unknown>,
+        ) => {
           const tx = {
             booking: {
               create: jest.fn().mockResolvedValue(created),

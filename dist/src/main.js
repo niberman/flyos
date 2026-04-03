@@ -12,9 +12,11 @@ const app_module_1 = require("./app.module");
 async function bootstrap() {
     const publicDir = (0, path_1.join)(process.cwd(), 'public');
     const expressApp = (0, express_1.default)();
-    expressApp.get('/scheduler', (_req, res) => {
+    const sendScheduler = (_req, res) => {
         res.sendFile((0, path_1.join)(publicDir, 'scheduler.html'));
-    });
+    };
+    expressApp.get('/', sendScheduler);
+    expressApp.get('/scheduler', sendScheduler);
     const app = await core_1.NestFactory.create(app_module_1.AppModule, new platform_express_1.ExpressAdapter(expressApp));
     app.useStaticAssets(publicDir);
     app.useGlobalPipes(new common_1.ValidationPipe({
@@ -25,5 +27,5 @@ async function bootstrap() {
     const port = process.env.PORT ?? 3000;
     await app.listen(port);
 }
-bootstrap();
+void bootstrap();
 //# sourceMappingURL=main.js.map

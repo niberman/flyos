@@ -32,7 +32,8 @@ describe('PrismaService', () => {
 
   it('constructs successfully with a valid DATABASE_URL', () => {
     expect(
-      () => new PrismaService(buildConfigService('postgresql://localhost/test')),
+      () =>
+        new PrismaService(buildConfigService('postgresql://localhost/test')),
     ).not.toThrow();
   });
 

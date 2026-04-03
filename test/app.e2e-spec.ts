@@ -35,13 +35,14 @@ describe('AppController (e2e)', () => {
     await app.listen(0, '127.0.0.1');
   });
 
-  it('/ (GET) serves the demo HTML shell', async () => {
+  it('/ (GET) serves the ribbon scheduler shell', async () => {
     const response = await request(app.getHttpServer())
       .get('/')
       .expect(200)
       .expect('Content-Type', /html/);
 
-    expect(response.text).toContain('FlyOS GraphQL demo');
+    expect(response.text).toContain('FlyOS Scheduler');
+    expect(response.text).toContain('/scheduler.css');
     expect(response.text).toContain('/graphql');
   });
 

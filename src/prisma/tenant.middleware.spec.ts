@@ -7,7 +7,10 @@
 // ==========================================================================
 
 import { Prisma } from '@prisma/client';
-import { createTenantExtension, createTenantMiddleware } from './tenant.middleware';
+import {
+  createTenantExtension,
+  createTenantMiddleware,
+} from './tenant.middleware';
 
 // Capture the config object passed to Prisma.defineExtension.
 let capturedConfig: any;
@@ -49,12 +52,9 @@ describe('createTenantExtension', () => {
     const noOrg = () => null;
 
     it('passes queries through unmodified', async () => {
-      const { calledWith } = await callHandler(
-        noOrg,
-        'User',
-        'findMany',
-        { where: { email: 'a@b.com' } },
-      );
+      const { calledWith } = await callHandler(noOrg, 'User', 'findMany', {
+        where: { email: 'a@b.com' },
+      });
       expect(calledWith.where).toEqual({ email: 'a@b.com' });
     });
   });
@@ -89,12 +89,9 @@ describe('createTenantExtension', () => {
     });
 
     it('injects organizationId into findFirst where clause', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'Base',
-        'findFirst',
-        { where: { icaoCode: 'KAPA' } },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'Base', 'findFirst', {
+        where: { icaoCode: 'KAPA' },
+      });
       expect(calledWith.where).toEqual({
         AND: [{ icaoCode: 'KAPA' }, { organizationId: 'org-tenant' }],
       });
@@ -111,12 +108,9 @@ describe('createTenantExtension', () => {
     });
 
     it('injects organizationId on create', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'Aircraft',
-        'create',
-        { data: { tailNumber: 'N999' } },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'Aircraft', 'create', {
+        data: { tailNumber: 'N999' },
+      });
       expect(calledWith.data).toEqual({
         tailNumber: 'N999',
         organizationId: 'org-tenant',
@@ -137,16 +131,11 @@ describe('createTenantExtension', () => {
     });
 
     it('injects organizationId on upsert where and create', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'Aircraft',
-        'upsert',
-        {
-          where: { id: 'ac-1' },
-          create: { tailNumber: 'N111' },
-          update: { make: 'Piper' },
-        },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'Aircraft', 'upsert', {
+        where: { id: 'ac-1' },
+        create: { tailNumber: 'N111' },
+        update: { make: 'Piper' },
+      });
       expect(calledWith.where).toEqual({
         AND: [{ id: 'ac-1' }, { organizationId: 'org-tenant' }],
       });
@@ -157,36 +146,28 @@ describe('createTenantExtension', () => {
     });
 
     it('injects filter on update operations', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'Aircraft',
-        'update',
-        { where: { id: 'ac-1' }, data: { make: 'Piper' } },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'Aircraft', 'update', {
+        where: { id: 'ac-1' },
+        data: { make: 'Piper' },
+      });
       expect(calledWith.where).toEqual({
         AND: [{ id: 'ac-1' }, { organizationId: 'org-tenant' }],
       });
     });
 
     it('injects filter on delete operations', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'Aircraft',
-        'delete',
-        { where: { id: 'ac-1' } },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'Aircraft', 'delete', {
+        where: { id: 'ac-1' },
+      });
       expect(calledWith.where).toEqual({
         AND: [{ id: 'ac-1' }, { organizationId: 'org-tenant' }],
       });
     });
 
     it('injects filter on count operations', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'Aircraft',
-        'count',
-        { where: {} },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'Aircraft', 'count', {
+        where: {},
+      });
       expect(calledWith.where).toEqual({ organizationId: 'org-tenant' });
     });
   });
@@ -195,12 +176,9 @@ describe('createTenantExtension', () => {
 
   describe('User model', () => {
     it('does NOT modify findUnique where clause (used for auth)', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'User',
-        'findUnique',
-        { where: { email: 'test@example.com' } },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'User', 'findUnique', {
+        where: { email: 'test@example.com' },
+      });
       expect(calledWith.where).toEqual({ email: 'test@example.com' });
     });
 
@@ -215,16 +193,11 @@ describe('createTenantExtension', () => {
     });
 
     it('injects organizationId on User upsert create', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'User',
-        'upsert',
-        {
-          where: { email: 'x@y.com' },
-          create: { email: 'x@y.com' },
-          update: {},
-        },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'User', 'upsert', {
+        where: { email: 'x@y.com' },
+        create: { email: 'x@y.com' },
+        update: {},
+      });
       expect(calledWith.create).toEqual({
         email: 'x@y.com',
         organizationId: 'org-tenant',
@@ -232,12 +205,9 @@ describe('createTenantExtension', () => {
     });
 
     it('injects filter on User findMany', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'User',
-        'findMany',
-        { where: {} },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'User', 'findMany', {
+        where: {},
+      });
       expect(calledWith.where).toEqual({ organizationId: 'org-tenant' });
     });
   });
@@ -253,10 +223,7 @@ describe('createTenantExtension', () => {
         { where: { userId: 'user-1' } },
       );
       expect(calledWith.where).toEqual({
-        AND: [
-          { userId: 'user-1' },
-          { base: { organizationId: 'org-tenant' } },
-        ],
+        AND: [{ userId: 'user-1' }, { base: { organizationId: 'org-tenant' } }],
       });
     });
 
@@ -273,12 +240,9 @@ describe('createTenantExtension', () => {
     });
 
     it('does NOT inject organizationId into create data for Booking', async () => {
-      const { calledWith } = await callHandler(
-        getOrgId,
-        'Booking',
-        'create',
-        { data: { userId: 'u1', aircraftId: 'a1' } },
-      );
+      const { calledWith } = await callHandler(getOrgId, 'Booking', 'create', {
+        data: { userId: 'u1', aircraftId: 'a1' },
+      });
       expect(calledWith.data).toEqual({ userId: 'u1', aircraftId: 'a1' });
     });
   });

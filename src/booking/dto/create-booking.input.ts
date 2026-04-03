@@ -15,7 +15,9 @@ import { BookingParticipantInput } from './booking-participant.input';
 
 @InputType({ description: 'Input for creating a new flight booking.' })
 export class CreateBookingInput {
-  @Field(() => ID, { description: 'UUID of the base where the flight originates.' })
+  @Field(() => ID, {
+    description: 'UUID of the base where the flight originates.',
+  })
   @IsUUID()
   baseId: string;
 
@@ -30,7 +32,8 @@ export class CreateBookingInput {
 
   @Field(() => ID, {
     nullable: true,
-    description: 'Book by schedulable resource UUID. Provide this or aircraftId.',
+    description:
+      'Book by schedulable resource UUID. Provide this or aircraftId.',
   })
   @IsOptional()
   @IsUUID()

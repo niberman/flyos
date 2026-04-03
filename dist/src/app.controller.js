@@ -16,8 +16,8 @@ exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
 const path_1 = require("path");
 let AppController = class AppController {
-    sendDemoRoot(res) {
-        res.sendFile((0, path_1.join)(process.cwd(), 'public', 'index.html'));
+    sendRibbonRoot(res) {
+        res.sendFile((0, path_1.join)(process.cwd(), 'public', 'scheduler.html'));
     }
     sendScheduler(res) {
         res.sendFile((0, path_1.join)(process.cwd(), 'public', 'scheduler.html'));
@@ -30,7 +30,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
-], AppController.prototype, "sendDemoRoot", null);
+], AppController.prototype, "sendRibbonRoot", null);
 __decorate([
     (0, common_1.Get)('scheduler'),
     __param(0, (0, common_1.Res)()),

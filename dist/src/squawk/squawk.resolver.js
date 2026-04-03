@@ -61,7 +61,9 @@ exports.SquawkResolver = SquawkResolver;
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(client_1.Role.INSTRUCTOR, client_1.Role.DISPATCHER),
-    (0, graphql_1.Query)(() => [squawk_type_1.SquawkType], { description: 'List squawks for the organization.' }),
+    (0, graphql_1.Query)(() => [squawk_type_1.SquawkType], {
+        description: 'List squawks for the organization.',
+    }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, graphql_1.Args)('aircraftId', { type: () => graphql_1.ID, nullable: true })),
     __metadata("design:type", Function),
@@ -76,7 +78,11 @@ __decorate([
     __param(1, (0, graphql_1.Args)('aircraftId', { type: () => graphql_1.ID })),
     __param(2, (0, graphql_1.Args)('title', { type: () => String })),
     __param(3, (0, graphql_1.Args)('description', { type: () => String, nullable: true })),
-    __param(4, (0, graphql_1.Args)('groundsAircraft', { type: () => Boolean, nullable: true, defaultValue: false })),
+    __param(4, (0, graphql_1.Args)('groundsAircraft', {
+        type: () => Boolean,
+        nullable: true,
+        defaultValue: false,
+    })),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String, String, String, Boolean]),
     __metadata("design:returntype", Promise)

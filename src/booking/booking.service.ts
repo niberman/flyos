@@ -105,7 +105,9 @@ export class BookingService {
         );
       }
       if (!resource.isActive) {
-        throw new BadRequestException('This schedulable resource is not active.');
+        throw new BadRequestException(
+          'This schedulable resource is not active.',
+        );
       }
       return resource;
     }
@@ -130,9 +132,15 @@ export class BookingService {
     organizationId: string,
     input: CreateBookingInput,
   ) {
-    const resource = await this.resolveSchedulableResource(organizationId, input);
+    const resource = await this.resolveSchedulableResource(
+      organizationId,
+      input,
+    );
 
-    if (resource.kind === SchedulableResourceKind.AIRCRAFT && resource.aircraft) {
+    if (
+      resource.kind === SchedulableResourceKind.AIRCRAFT &&
+      resource.aircraft
+    ) {
       const ac = resource.aircraft;
       if (ac.airworthinessStatus === AirworthinessStatus.GROUNDED) {
         throw new BadRequestException(
@@ -183,7 +191,9 @@ export class BookingService {
     }
 
     if (instructorUserId === userId) {
-      throw new BadRequestException('Instructor must be a different user than the renter.');
+      throw new BadRequestException(
+        'Instructor must be a different user than the renter.',
+      );
     }
 
     if (instructorUserId) {
@@ -191,7 +201,9 @@ export class BookingService {
         where: { id: instructorUserId, organizationId },
       });
       if (!instUser) {
-        throw new BadRequestException('Instructor user not found in your organization.');
+        throw new BadRequestException(
+          'Instructor user not found in your organization.',
+        );
       }
     }
 
@@ -305,20 +317,13 @@ export class BookingService {
     });
   }
 
-  async myBookings(
-    userId: string,
-    organizationId: string,
-    baseId?: string,
-  ) {
+  async myBookings(userId: string, organizationId: string, baseId?: string) {
     return this.prisma.booking.findMany({
       where: {
         base: { organizationId },
         ...this.notCancelledWhere(),
         ...(baseId ? { baseId } : {}),
-        OR: [
-          { userId },
-          { participants: { some: { userId } } },
-        ],
+        OR: [{ userId }, { participants: { some: { userId } } }],
       },
       include: bookingInclude,
       orderBy: { startTime: 'asc' },
@@ -341,7 +346,9 @@ export class BookingService {
     tachOut?: number,
   ) {
     if (role !== Role.INSTRUCTOR && role !== Role.DISPATCHER) {
-      throw new ForbiddenException('Only instructors or dispatchers can dispatch.');
+      throw new ForbiddenException(
+        'Only instructors or dispatchers can dispatch.',
+      );
     }
 
     const booking = await this.prisma.booking.findFirst({
@@ -350,7 +357,9 @@ export class BookingService {
     });
 
     if (!booking) {
-      throw new BadRequestException(`Booking with ID "${bookingId}" not found.`);
+      throw new BadRequestException(
+        `Booking with ID "${bookingId}" not found.`,
+      );
     }
 
     if (booking.status !== BookingStatus.SCHEDULED) {
@@ -400,14 +409,14 @@ export class BookingService {
     });
 
     if (!booking) {
-      throw new BadRequestException(`Booking with ID "${bookingId}" not found.`);
+      throw new BadRequestException(
+        `Booking with ID "${bookingId}" not found.`,
+      );
     }
 
     const isOwner = booking.userId === actorUserId;
     const canComplete =
-      isOwner ||
-      role === Role.INSTRUCTOR ||
-      role === Role.DISPATCHER;
+      isOwner || role === Role.INSTRUCTOR || role === Role.DISPATCHER;
     if (!canComplete) {
       throw new ForbiddenException('You cannot complete this booking.');
     }
@@ -428,17 +437,19 @@ export class BookingService {
       );
     }
 
-    const decInH =
-      hobbsIn !== undefined ? new Prisma.Decimal(hobbsIn) : null;
-    const decInT =
-      tachIn !== undefined ? new Prisma.Decimal(tachIn) : null;
+    const decInH = hobbsIn !== undefined ? new Prisma.Decimal(hobbsIn) : null;
+    const decInT = tachIn !== undefined ? new Prisma.Decimal(tachIn) : null;
 
     if (isAircraft && decInH && decInT) {
       if (booking.hobbsOut && decInH.lt(booking.hobbsOut)) {
-        throw new BadRequestException('hobbsIn must be greater than or equal to hobbsOut.');
+        throw new BadRequestException(
+          'hobbsIn must be greater than or equal to hobbsOut.',
+        );
       }
       if (booking.tachOut && decInT.lt(booking.tachOut)) {
-        throw new BadRequestException('tachIn must be greater than or equal to tachOut.');
+        throw new BadRequestException(
+          'tachIn must be greater than or equal to tachOut.',
+        );
       }
     }
 
@@ -483,7 +494,9 @@ export class BookingService {
     });
 
     if (!booking) {
-      throw new BadRequestException(`Booking with ID "${bookingId}" not found.`);
+      throw new BadRequestException(
+        `Booking with ID "${bookingId}" not found.`,
+      );
     }
 
     if (booking.status === BookingStatus.CANCELLED) {

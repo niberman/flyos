@@ -85,12 +85,9 @@ describe('getRequestOrganizationId', () => {
 
 describe('runWithTenantContext', () => {
   it('provides tenant context within the callback', () => {
-    const result = runWithTenantContext(
-      { organizationId: 'org-run' },
-      () => {
-        return getRequestOrganizationId();
-      },
-    );
+    const result = runWithTenantContext({ organizationId: 'org-run' }, () => {
+      return getRequestOrganizationId();
+    });
     expect(result).toBe('org-run');
   });
 

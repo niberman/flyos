@@ -1,9 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
-import {
-  AirworthinessStatus,
-  SquawkStatus,
-} from '@prisma/client';
+import { AirworthinessStatus, SquawkStatus } from '@prisma/client';
 import { SquawkService } from './squawk.service';
 import { PrismaService } from '../prisma/prisma.service';
 

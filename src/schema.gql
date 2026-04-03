@@ -214,6 +214,18 @@ input CreateAircraftInput {
   tailNumber: String!
 }
 
+"""Input for creating a new base in your organization."""
+input CreateBaseInput {
+  """ICAO airport code (e.g., KAPA). Must be unique per organization."""
+  icaoCode: String!
+
+  """Display name of the base."""
+  name: String!
+
+  """IANA timezone (e.g., America/Denver)."""
+  timezone: String!
+}
+
 """Input for creating a new flight booking."""
 input CreateBookingInput {
   """
@@ -312,6 +324,9 @@ type Mutation {
   """Add a new aircraft to the fleet. DISPATCHER only."""
   createAircraft(input: CreateAircraftInput!): Aircraft!
 
+  """Create a new base. DISPATCHER only."""
+  createBase(input: CreateBaseInput!): Base!
+
   """
   Create a flight booking. Fails if aircraft is grounded or time conflicts exist.
   """
@@ -371,6 +386,9 @@ type Query {
   Telemetry threshold violations for the current organization. Defaults to the last 24 hours.
   """
   alertHistory(aircraftId: ID, hours: Int = 24): [Alert!]!
+
+  """List all bases in the organization."""
+  bases: [Base!]!
 
   """List all bookings in the organization. INSTRUCTOR and DISPATCHER only."""
   bookings(baseId: String): [Booking!]!

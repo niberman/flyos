@@ -14,25 +14,33 @@ import { BaseType } from '../base/base.type';
 // used as a field type and input argument in the schema.
 registerEnumType(AirworthinessStatus, {
   name: 'AirworthinessStatus',
-  description: 'Indicates whether an aircraft is cleared for flight operations.',
+  description:
+    'Indicates whether an aircraft is cleared for flight operations.',
 });
 
 @ObjectType('Aircraft', {
   description: 'An aircraft in the flight school fleet.',
 })
 export class AircraftType {
-  @Field(() => ID, { description: 'Unique identifier (UUID) for the aircraft.' })
+  @Field(() => ID, {
+    description: 'Unique identifier (UUID) for the aircraft.',
+  })
   id: string;
 
   @Field(() => String, {
-    description: 'FAA tail number uniquely identifying the aircraft (e.g., N12345).',
+    description:
+      'FAA tail number uniquely identifying the aircraft (e.g., N12345).',
   })
   tailNumber: string;
 
-  @Field(() => String, { description: 'Aircraft manufacturer (e.g., Cessna, Piper).' })
+  @Field(() => String, {
+    description: 'Aircraft manufacturer (e.g., Cessna, Piper).',
+  })
   make: string;
 
-  @Field(() => String, { description: 'Aircraft model (e.g., 172 Skyhawk, PA-28 Cherokee).' })
+  @Field(() => String, {
+    description: 'Aircraft model (e.g., 172 Skyhawk, PA-28 Cherokee).',
+  })
   model: string;
 
   @Field(() => AirworthinessStatus, {
@@ -41,10 +49,14 @@ export class AircraftType {
   })
   airworthinessStatus: AirworthinessStatus;
 
-  @Field(() => ID, { description: 'UUID of the organization this aircraft belongs to.' })
+  @Field(() => ID, {
+    description: 'UUID of the organization this aircraft belongs to.',
+  })
   organizationId: string;
 
-  @Field(() => ID, { description: 'UUID of the default home base for this aircraft.' })
+  @Field(() => ID, {
+    description: 'UUID of the default home base for this aircraft.',
+  })
   homeBaseId: string;
 
   @Field(() => BaseType, {
@@ -52,9 +64,13 @@ export class AircraftType {
   })
   homeBase?: BaseType;
 
-  @Field(() => Date, { description: 'Timestamp when the aircraft record was created.' })
+  @Field(() => Date, {
+    description: 'Timestamp when the aircraft record was created.',
+  })
   createdAt: Date;
 
-  @Field(() => Date, { description: 'Timestamp of the last update to the aircraft record.' })
+  @Field(() => Date, {
+    description: 'Timestamp of the last update to the aircraft record.',
+  })
   updatedAt: Date;
 }

@@ -7,76 +7,54 @@
     <link rel="stylesheet" href="/scheduler.css" />
   </head>
   <body class="sched-page">
-    <header class="top-bar">
+    <header class="top-bar top-bar--minimal" aria-label="App">
       <div class="top-bar__brand">FlyOS</div>
-      <nav class="top-bar__nav" aria-label="Primary">
-        <a class="is-active" href="/scheduler">Command</a>
-        <a href="/">Fleet</a>
-        <a href="/">Logbook</a>
-        <a href="/">Weather</a>
-      </nav>
       <div class="top-bar__right">
-        <input class="top-bar__search" type="search" placeholder="Search asset or tail…" disabled />
-        <span class="icon-btn" title="Notifications">🔔</span>
-        <span class="icon-btn" title="Profile">◉</span>
+        <a class="top-bar__link" href="/graphql">GraphQL</a>
       </div>
     </header>
 
-    <div class="app-body">
-      <aside class="sidebar" aria-label="App sections">
-        <a class="sidebar__item is-active" href="/scheduler" title="Schedule">▦</a>
-        <a class="sidebar__item" href="/" title="Aircraft">✈</a>
-        <span class="sidebar__item" title="Maintenance">🔧</span>
-        <span class="sidebar__item" title="Messages">💬</span>
-        <span class="sidebar__item" title="Inventory">📦</span>
-        <span class="sidebar__item" title="Billing">💳</span>
-        <div class="sidebar__spacer"></div>
-        <span class="sidebar__item" title="Settings">⚙</span>
-      </aside>
+    <main class="main-panel main-panel--full">
+      <p class="panel-title">Fleet Ops</p>
+      <h1 class="panel-heading">Ribbon schedule</h1>
 
-      <main class="main-panel">
-        <p class="panel-title">Fleet Ops Center</p>
-        <h1 class="panel-heading">Ribbon schedule</h1>
+      <div class="toolbar">
+        <label>
+          Base
+          <select id="select-base">
+            <option value="">Select a base…</option>
+          </select>
+        </label>
+        <label>
+          Day (local)
+          <input id="input-date" type="date" />
+        </label>
+        <button type="button" id="btn-load">Load</button>
+        <p class="hint">
+          <code>bookingsByBase</code> needs INSTRUCTOR or DISPATCHER. Optional JWT in
+          <code>sessionStorage</code> key <code>flyos_demo_jwt</code> (login via
+          <a href="/graphql">GraphQL</a> <code>login</code>).
+        </p>
+      </div>
 
-        <div class="toolbar">
-          <label>
-            Base
-            <select id="select-base">
-              <option value="">Select a base...</option>
-            </select>
-          </label>
-          <label>
-            Day (local)
-            <input id="input-date" type="date" />
-          </label>
-          <button type="button" id="btn-load">Load</button>
-          <p class="hint">
-            <code>bookingsByBase</code> is INSTRUCTOR or DISPATCHER only. JWT is shared with the
-            <a href="/">GraphQL demo</a> (<code>flyos_demo_jwt</code>).
-          </p>
-        </div>
+      <p id="status-msg" class="status-msg" role="status"></p>
 
-        <p id="status-msg" class="status-msg" role="status"></p>
-
-        <div class="schedule-frame">
-          <div class="schedule-sync">
-            <div class="schedule-corner" aria-hidden="true"></div>
-            <div id="schedule-header-scroll" class="schedule-header-scroll">
-              <div id="hour-ruler-inner"></div>
-            </div>
-            <div id="labels-col" class="labels-col"></div>
-            <div id="grid-scroll" class="grid-scroll">
-              <div id="grid-scroll-stage" class="grid-scroll-stage">
-                <div id="now-line" class="now-line" style="display: none" aria-hidden="true"></div>
-                <div id="grid-inner"></div>
-              </div>
+      <div class="schedule-frame">
+        <div class="schedule-sync">
+          <div class="schedule-corner" aria-hidden="true"></div>
+          <div id="schedule-header-scroll" class="schedule-header-scroll">
+            <div id="hour-ruler-inner"></div>
+          </div>
+          <div id="labels-col" class="labels-col"></div>
+          <div id="grid-scroll" class="grid-scroll">
+            <div id="grid-scroll-stage" class="grid-scroll-stage">
+              <div id="now-line" class="now-line" style="display: none" aria-hidden="true"></div>
+              <div id="grid-inner"></div>
             </div>
           </div>
         </div>
-      </main>
-    </div>
-
-    <button type="button" class="fab" title="New booking (not wired)" aria-label="Add">+</button>
+      </div>
+    </main>
 
     <script src="/scheduler.js"></script>
   </body>

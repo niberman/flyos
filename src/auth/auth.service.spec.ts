@@ -303,9 +303,7 @@ describe('AuthService', () => {
     it('throws UnauthorizedException when user not found', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.login(input)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.login(input)).rejects.toThrow(UnauthorizedException);
     });
 
     it('throws UnauthorizedException when password is wrong', async () => {
@@ -317,9 +315,7 @@ describe('AuthService', () => {
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-      await expect(service.login(input)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.login(input)).rejects.toThrow(UnauthorizedException);
     });
 
     it('returns a JWT and organizationId when credentials are valid', async () => {

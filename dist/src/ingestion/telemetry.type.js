@@ -20,7 +20,9 @@ let TelemetryType = class TelemetryType {
 };
 exports.TelemetryType = TelemetryType;
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'Unique identifier for the telemetry record.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        description: 'Unique identifier for the telemetry record.',
+    }),
     __metadata("design:type", String)
 ], TelemetryType.prototype, "id", void 0);
 __decorate([
@@ -28,7 +30,9 @@ __decorate([
     __metadata("design:type", String)
 ], TelemetryType.prototype, "aircraftId", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'Timestamp when the sensor data was recorded.' }),
+    (0, graphql_1.Field)(() => Date, {
+        description: 'Timestamp when the sensor data was recorded.',
+    }),
     __metadata("design:type", Date)
 ], TelemetryType.prototype, "timestamp", void 0);
 __decorate([

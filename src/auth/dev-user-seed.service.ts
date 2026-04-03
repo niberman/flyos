@@ -26,7 +26,29 @@ export class DevUserSeedService implements OnModuleInit {
       return;
     }
 
-    const count = await this.prisma.user.count();
+    let count: number;
+    try {
+      count = await this.prisma.user.count();
+    } catch (err: unknown) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code: unknown }).code)
+          : '';
+      const msg = err instanceof Error ? err.message : String(err);
+      const unreachable =
+        code === 'P1001' ||
+        code === 'ECONNREFUSED' ||
+        msg.includes('ECONNREFUSED') ||
+        msg.includes("Can't reach database");
+      if (unreachable) {
+        this.logger.warn(
+          'Dev user seed skipped: database is not reachable. Start PostgreSQL (e.g. `docker compose up -d postgres`), verify DATABASE_URL, then restart.',
+        );
+        return;
+      }
+      throw err;
+    }
+
     if (count > 0) {
       return;
     }

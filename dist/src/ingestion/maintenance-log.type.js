@@ -20,7 +20,9 @@ let MaintenanceLogType = class MaintenanceLogType {
 };
 exports.MaintenanceLogType = MaintenanceLogType;
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'Unique identifier for the maintenance log.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        description: 'Unique identifier for the maintenance log.',
+    }),
     __metadata("design:type", String)
 ], MaintenanceLogType.prototype, "id", void 0);
 __decorate([

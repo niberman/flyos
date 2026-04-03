@@ -24,7 +24,9 @@ let CreateBookingInput = class CreateBookingInput {
 };
 exports.CreateBookingInput = CreateBookingInput;
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the base where the flight originates.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        description: 'UUID of the base where the flight originates.',
+    }),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateBookingInput.prototype, "baseId", void 0);

@@ -61,7 +61,6 @@ describe('AircraftService', () => {
       const expected = {
         id: 'uuid-1',
         organizationId: ORG_ID,
-        homeBaseId: 'base-1',
         ...input,
       };
       const txStub = {

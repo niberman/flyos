@@ -99,7 +99,8 @@ let BookingService = class BookingService {
     }
     async createBooking(userId, organizationId, input) {
         const resource = await this.resolveSchedulableResource(organizationId, input);
-        if (resource.kind === client_1.SchedulableResourceKind.AIRCRAFT && resource.aircraft) {
+        if (resource.kind === client_1.SchedulableResourceKind.AIRCRAFT &&
+            resource.aircraft) {
             const ac = resource.aircraft;
             if (ac.airworthinessStatus === client_1.AirworthinessStatus.GROUNDED) {
                 throw new common_1.BadRequestException(`Aircraft "${ac.tailNumber}" is GROUNDED and cannot be booked.`);
@@ -238,10 +239,7 @@ let BookingService = class BookingService {
                 base: { organizationId },
                 ...this.notCancelledWhere(),
                 ...(baseId ? { baseId } : {}),
-                OR: [
-                    { userId },
-                    { participants: { some: { userId } } },
-                ],
+                OR: [{ userId }, { participants: { some: { userId } } }],
             },
             include: bookingInclude,
             orderBy: { startTime: 'asc' },
@@ -297,9 +295,7 @@ let BookingService = class BookingService {
             throw new common_1.BadRequestException(`Booking with ID "${bookingId}" not found.`);
         }
         const isOwner = booking.userId === actorUserId;
-        const canComplete = isOwner ||
-            role === client_1.Role.INSTRUCTOR ||
-            role === client_1.Role.DISPATCHER;
+        const canComplete = isOwner || role === client_1.Role.INSTRUCTOR || role === client_1.Role.DISPATCHER;
         if (!canComplete) {
             throw new common_1.ForbiddenException('You cannot complete this booking.');
         }

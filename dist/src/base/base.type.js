@@ -26,7 +26,9 @@ __decorate([
     __metadata("design:type", String)
 ], BaseType.prototype, "id", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'UUID of the organization this base belongs to.' }),
+    (0, graphql_1.Field)(() => String, {
+        description: 'UUID of the organization this base belongs to.',
+    }),
     __metadata("design:type", String)
 ], BaseType.prototype, "organizationId", void 0);
 __decorate([
@@ -38,7 +40,9 @@ __decorate([
     __metadata("design:type", String)
 ], BaseType.prototype, "icaoCode", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'IANA timezone identifier (e.g., America/Denver).' }),
+    (0, graphql_1.Field)(() => String, {
+        description: 'IANA timezone identifier (e.g., America/Denver).',
+    }),
     __metadata("design:type", String)
 ], BaseType.prototype, "timezone", void 0);
 __decorate([
@@ -46,7 +50,9 @@ __decorate([
     __metadata("design:type", Date)
 ], BaseType.prototype, "createdAt", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'Timestamp of the last update to the base record.' }),
+    (0, graphql_1.Field)(() => Date, {
+        description: 'Timestamp of the last update to the base record.',
+    }),
     __metadata("design:type", Date)
 ], BaseType.prototype, "updatedAt", void 0);
 exports.BaseType = BaseType = __decorate([

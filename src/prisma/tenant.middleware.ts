@@ -80,9 +80,7 @@ function mergeWhere(
  * - Skips User `findUnique` / `findUniqueOrThrow` / `upsert` `where` (auth
  *   login by email and Prisma `WhereUniqueInput` rules).
  */
-export function createTenantExtension(
-  getOrganizationId: () => string | null,
-) {
+export function createTenantExtension(getOrganizationId: () => string | null) {
   return Prisma.defineExtension({
     query: {
       $allModels: {
@@ -120,7 +118,7 @@ export function createTenantExtension(
             }
           }
 
-          if (BASE_SCOPED_MODELS.has(model!)) {
+          if (BASE_SCOPED_MODELS.has(model)) {
             if (FILTERED_ACTIONS.has(operation)) {
               // Bookings and UserBase rows do not have organizationId, so
               // tenant isolation must flow through their related base.
@@ -133,7 +131,7 @@ export function createTenantExtension(
             return query(op);
           }
 
-          if (!DIRECTLY_SCOPED_MODELS.has(model!)) {
+          if (!DIRECTLY_SCOPED_MODELS.has(model)) {
             return query(args);
           }
 
@@ -147,7 +145,10 @@ export function createTenantExtension(
           if (operation === 'create') {
             // Directly-scoped models should never rely on callers to remember
             // organizationId; the extension writes it centrally.
-            op.data = { ...(op.data as Record<string, unknown>), organizationId };
+            op.data = {
+              ...(op.data as Record<string, unknown>),
+              organizationId,
+            };
           }
 
           if (operation === 'createMany') {

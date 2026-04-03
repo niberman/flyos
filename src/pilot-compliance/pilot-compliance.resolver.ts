@@ -30,7 +30,8 @@ export class PilotComplianceResolver {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.DISPATCHER)
   @Mutation(() => PilotMedicalType, {
-    description: 'Create or replace the latest pilot medical for a user (dispatcher).',
+    description:
+      'Create or replace the latest pilot medical for a user (dispatcher).',
   })
   async upsertPilotMedical(
     @CurrentUser() user: { userId: string },
@@ -59,7 +60,8 @@ export class PilotComplianceResolver {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.DISPATCHER)
   @Mutation(() => FlightReviewType, {
-    description: 'Create or replace the latest flight review for a user (dispatcher).',
+    description:
+      'Create or replace the latest flight review for a user (dispatcher).',
   })
   async upsertFlightReview(
     @CurrentUser() user: { userId: string },

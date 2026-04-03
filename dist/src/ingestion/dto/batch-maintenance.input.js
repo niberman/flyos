@@ -61,6 +61,8 @@ __decorate([
     __metadata("design:type", Array)
 ], BatchMaintenanceInput.prototype, "entries", void 0);
 exports.BatchMaintenanceInput = BatchMaintenanceInput = __decorate([
-    (0, graphql_1.InputType)({ description: 'Input for batch uploading maintenance log records.' })
+    (0, graphql_1.InputType)({
+        description: 'Input for batch uploading maintenance log records.',
+    })
 ], BatchMaintenanceInput);
 //# sourceMappingURL=batch-maintenance.input.js.map

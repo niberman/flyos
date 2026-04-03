@@ -31,7 +31,9 @@ let AircraftType = class AircraftType {
 };
 exports.AircraftType = AircraftType;
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'Unique identifier (UUID) for the aircraft.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        description: 'Unique identifier (UUID) for the aircraft.',
+    }),
     __metadata("design:type", String)
 ], AircraftType.prototype, "id", void 0);
 __decorate([
@@ -41,11 +43,15 @@ __decorate([
     __metadata("design:type", String)
 ], AircraftType.prototype, "tailNumber", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'Aircraft manufacturer (e.g., Cessna, Piper).' }),
+    (0, graphql_1.Field)(() => String, {
+        description: 'Aircraft manufacturer (e.g., Cessna, Piper).',
+    }),
     __metadata("design:type", String)
 ], AircraftType.prototype, "make", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'Aircraft model (e.g., 172 Skyhawk, PA-28 Cherokee).' }),
+    (0, graphql_1.Field)(() => String, {
+        description: 'Aircraft model (e.g., 172 Skyhawk, PA-28 Cherokee).',
+    }),
     __metadata("design:type", String)
 ], AircraftType.prototype, "model", void 0);
 __decorate([
@@ -55,11 +61,15 @@ __decorate([
     __metadata("design:type", String)
 ], AircraftType.prototype, "airworthinessStatus", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the organization this aircraft belongs to.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        description: 'UUID of the organization this aircraft belongs to.',
+    }),
     __metadata("design:type", String)
 ], AircraftType.prototype, "organizationId", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID, { description: 'UUID of the default home base for this aircraft.' }),
+    (0, graphql_1.Field)(() => graphql_1.ID, {
+        description: 'UUID of the default home base for this aircraft.',
+    }),
     __metadata("design:type", String)
 ], AircraftType.prototype, "homeBaseId", void 0);
 __decorate([
@@ -69,11 +79,15 @@ __decorate([
     __metadata("design:type", base_type_1.BaseType)
 ], AircraftType.prototype, "homeBase", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'Timestamp when the aircraft record was created.' }),
+    (0, graphql_1.Field)(() => Date, {
+        description: 'Timestamp when the aircraft record was created.',
+    }),
     __metadata("design:type", Date)
 ], AircraftType.prototype, "createdAt", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Date, { description: 'Timestamp of the last update to the aircraft record.' }),
+    (0, graphql_1.Field)(() => Date, {
+        description: 'Timestamp of the last update to the aircraft record.',
+    }),
     __metadata("design:type", Date)
 ], AircraftType.prototype, "updatedAt", void 0);
 exports.AircraftType = AircraftType = __decorate([

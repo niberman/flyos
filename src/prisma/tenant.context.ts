@@ -54,9 +54,7 @@ export class TenantContext {
   get organizationId(): string | null {
     // Prefer the async context when present so nested awaits keep using the
     // request-scoped organization even if this instance was constructed earlier.
-    return (
-      tenantStorage.getStore()?.organizationId ?? this._organizationId
-    );
+    return tenantStorage.getStore()?.organizationId ?? this._organizationId;
   }
 
   get baseId(): string | null {

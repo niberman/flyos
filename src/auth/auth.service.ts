@@ -37,18 +37,15 @@ export class AuthService {
   ) {}
 
   private slugifyOrganizationName(name: string): string {
-    return name
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '-');
+    return name.trim().toLowerCase().replace(/\s+/g, '-');
   }
 
-  private async ensureUniqueOrganizationSlug(baseSlug: string): Promise<string> {
+  private async ensureUniqueOrganizationSlug(
+    baseSlug: string,
+  ): Promise<string> {
     let slug = baseSlug;
     let n = 0;
-    while (
-      await this.prisma.organization.findUnique({ where: { slug } })
-    ) {
+    while (await this.prisma.organization.findUnique({ where: { slug } })) {
       n += 1;
       slug = `${baseSlug}-${n}`;
     }

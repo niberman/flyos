@@ -24,15 +24,21 @@ export class UserType {
   // NOTE: passwordHash is deliberately NOT exposed as a GraphQL field.
   // This prevents sensitive credential data from ever reaching the client.
 
-  @Field(() => Role, { description: 'Role determining the user\'s access level.' })
+  @Field(() => Role, {
+    description: "Role determining the user's access level.",
+  })
   role: string;
 
-  @Field(() => String, { description: 'UUID of the organization this user belongs to.' })
+  @Field(() => String, {
+    description: 'UUID of the organization this user belongs to.',
+  })
   organizationId: string;
 
   @Field(() => Date, { description: 'Timestamp when the user was created.' })
   createdAt: Date;
 
-  @Field(() => Date, { description: 'Timestamp of the last update to the user record.' })
+  @Field(() => Date, {
+    description: 'Timestamp of the last update to the user record.',
+  })
   updatedAt: Date;
 }

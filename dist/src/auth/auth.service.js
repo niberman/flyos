@@ -55,10 +55,7 @@ let AuthService = class AuthService {
         this.jwtService = jwtService;
     }
     slugifyOrganizationName(name) {
-        return name
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, '-');
+        return name.trim().toLowerCase().replace(/\s+/g, '-');
     }
     async ensureUniqueOrganizationSlug(baseSlug) {
         let slug = baseSlug;

@@ -77,7 +77,9 @@ __decorate([
     __metadata("design:type", String)
 ], BookingType.prototype, "baseId", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => String, { description: 'UUID of the organizing user (renter / booker).' }),
+    (0, graphql_1.Field)(() => String, {
+        description: 'UUID of the organizing user (renter / booker).',
+    }),
     __metadata("design:type", String)
 ], BookingType.prototype, "userId", void 0);
 __decorate([

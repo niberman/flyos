@@ -157,7 +157,8 @@ describe('MaintenanceService', () => {
           aircraftId: 'ac-3',
           aircraft: { tailNumber: 'N333' },
           data: {
-            cylinderHeadTemperature: DEFAULT_THRESHOLDS.cylinderHeadTemp.max - 1,
+            cylinderHeadTemperature:
+              DEFAULT_THRESHOLDS.cylinderHeadTemp.max - 1,
             oilPressure: DEFAULT_THRESHOLDS.oilPressure.min + 1,
             oilTemperature: DEFAULT_THRESHOLDS.oilTemperature.max - 1,
             egtSpread: DEFAULT_THRESHOLDS.egtSpread.max - 1,
