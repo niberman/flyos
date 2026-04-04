@@ -13,9 +13,9 @@ export declare class SquawkService {
         createdAt: Date;
         organizationId: string;
         aircraftId: string;
+        status: import("@prisma/client").$Enums.SquawkStatus;
         title: string;
         description: string | null;
-        status: import("@prisma/client").$Enums.SquawkStatus;
         groundsAircraft: boolean;
         clearedAt: Date | null;
     }>;
@@ -24,9 +24,9 @@ export declare class SquawkService {
         createdAt: Date;
         organizationId: string;
         aircraftId: string;
+        status: import("@prisma/client").$Enums.SquawkStatus;
         title: string;
         description: string | null;
-        status: import("@prisma/client").$Enums.SquawkStatus;
         groundsAircraft: boolean;
         clearedAt: Date | null;
     }>;
@@ -35,9 +35,9 @@ export declare class SquawkService {
         createdAt: Date;
         organizationId: string;
         aircraftId: string;
+        status: import("@prisma/client").$Enums.SquawkStatus;
         title: string;
         description: string | null;
-        status: import("@prisma/client").$Enums.SquawkStatus;
         groundsAircraft: boolean;
         clearedAt: Date | null;
     }[]>;

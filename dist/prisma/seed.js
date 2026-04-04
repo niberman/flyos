@@ -33,15 +33,75 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+const dotenv_1 = require("dotenv");
+const path_1 = require("path");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const client_1 = require("@prisma/client");
 const bcrypt = __importStar(require("bcrypt"));
+(0, dotenv_1.config)({ path: (0, path_1.resolve)(__dirname, '..', '.env') });
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
     throw new Error('DATABASE_URL is required to run the seed script.');
 }
 const adapter = new adapter_pg_1.PrismaPg(DATABASE_URL);
 const prisma = new client_1.PrismaClient({ adapter });
+const RIBBON_TZ = 'America/Denver';
+function getZonedYMD(timeZone, instant) {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    const parts = fmt.formatToParts(instant);
+    const n = (t) => Number(parts.find((p) => p.type === t).value);
+    return { y: n('year'), m: n('month'), d: n('day') };
+}
+function pad2(n) {
+    return String(n).padStart(2, '0');
+}
+function zonedWallToUtc(year, month, day, hour, minute, timeZone) {
+    const target = `${year}-${pad2(month)}-${pad2(day)} ${pad2(hour)}:${pad2(minute)}`;
+    const fmt = new Intl.DateTimeFormat('sv-SE', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+    let lo = Date.UTC(year, month - 1, day - 1, 12, 0, 0);
+    let hi = Date.UTC(year, month - 1, day + 1, 12, 0, 0);
+    for (let i = 0; i < 56; i++) {
+        const mid = Math.floor((lo + hi) / 2);
+        const got = fmt.format(new Date(mid));
+        if (got === target) {
+            return new Date(mid);
+        }
+        if (got < target) {
+            lo = mid + 1;
+        }
+        else {
+            hi = mid - 1;
+        }
+    }
+    throw new Error(`zonedWallToUtc: could not resolve ${target} in ${timeZone} (DST gap?)`);
+}
+function denverTodaySlot(hourStart, minuteStart, hourEnd, minuteEnd) {
+    const { y, m, d } = getZonedYMD(RIBBON_TZ, new Date());
+    return {
+        start: zonedWallToUtc(y, m, d, hourStart, minuteStart, RIBBON_TZ),
+        end: zonedWallToUtc(y, m, d, hourEnd, minuteEnd, RIBBON_TZ),
+    };
+}
+const RIBBON_DEMO_BOOKING_IDS = [
+    'f0000001-0000-4000-8000-000000000001',
+    'f0000002-0000-4000-8000-000000000002',
+    'f0000003-0000-4000-8000-000000000003',
+    'f0000004-0000-4000-8000-000000000004',
+    'f0000005-0000-4000-8000-000000000005',
+];
 async function main() {
     console.log('Seeding FlyOS database...');
     const org = await prisma.organization.upsert({
@@ -260,6 +320,140 @@ async function main() {
                 },
             });
         }
+    }
+    await prisma.booking.deleteMany({
+        where: { id: { in: [...RIBBON_DEMO_BOOKING_IDS] } },
+    });
+    const ribbonAircraft = await prisma.aircraft.findMany({
+        where: {
+            organizationId: org.id,
+            tailNumber: { in: ['N172SP', 'N182RG', 'N44BE'] },
+        },
+        include: { schedulableResource: true },
+    });
+    const resourceByTail = Object.fromEntries(ribbonAircraft.map((a) => [a.tailNumber, a.schedulableResource]));
+    const r172 = resourceByTail['N172SP'];
+    const r182 = resourceByTail['N182RG'];
+    const r44 = resourceByTail['N44BE'];
+    if (r172 && r182 && r44) {
+        const b1 = denverTodaySlot(8, 0, 9, 30);
+        const b2 = denverTodaySlot(14, 0, 16, 0);
+        const b3 = denverTodaySlot(10, 0, 11, 30);
+        const b4 = denverTodaySlot(17, 0, 18, 0);
+        const b5 = denverTodaySlot(12, 0, 13, 0);
+        await prisma.booking.create({
+            data: {
+                id: RIBBON_DEMO_BOOKING_IDS[0],
+                userId: student.id,
+                baseId: kapaBase.id,
+                schedulableResourceId: r172.id,
+                startTime: b1.start,
+                endTime: b1.end,
+                status: client_1.BookingStatus.SCHEDULED,
+                participants: {
+                    create: [
+                        {
+                            userId: student.id,
+                            role: client_1.BookingParticipantRole.RENTER,
+                            organizationId: org.id,
+                        },
+                    ],
+                },
+            },
+        });
+        await prisma.booking.create({
+            data: {
+                id: RIBBON_DEMO_BOOKING_IDS[1],
+                userId: student.id,
+                baseId: kapaBase.id,
+                schedulableResourceId: r172.id,
+                startTime: b2.start,
+                endTime: b2.end,
+                status: client_1.BookingStatus.DISPATCHED,
+                dispatchedAt: b2.start,
+                participants: {
+                    create: [
+                        {
+                            userId: student.id,
+                            role: client_1.BookingParticipantRole.RENTER,
+                            organizationId: org.id,
+                        },
+                        {
+                            userId: instructor.id,
+                            role: client_1.BookingParticipantRole.INSTRUCTOR,
+                            organizationId: org.id,
+                        },
+                    ],
+                },
+            },
+        });
+        await prisma.booking.create({
+            data: {
+                id: RIBBON_DEMO_BOOKING_IDS[2],
+                userId: student.id,
+                baseId: kapaBase.id,
+                schedulableResourceId: r182.id,
+                startTime: b3.start,
+                endTime: b3.end,
+                status: client_1.BookingStatus.IN_PROGRESS,
+                dispatchedAt: b3.start,
+                participants: {
+                    create: [
+                        {
+                            userId: student.id,
+                            role: client_1.BookingParticipantRole.RENTER,
+                            organizationId: org.id,
+                        },
+                    ],
+                },
+            },
+        });
+        await prisma.booking.create({
+            data: {
+                id: RIBBON_DEMO_BOOKING_IDS[3],
+                userId: student.id,
+                baseId: kapaBase.id,
+                schedulableResourceId: r182.id,
+                startTime: b4.start,
+                endTime: b4.end,
+                status: client_1.BookingStatus.COMPLETED,
+                dispatchedAt: b4.start,
+                completedAt: b4.end,
+                participants: {
+                    create: [
+                        {
+                            userId: student.id,
+                            role: client_1.BookingParticipantRole.RENTER,
+                            organizationId: org.id,
+                        },
+                    ],
+                },
+            },
+        });
+        await prisma.booking.create({
+            data: {
+                id: RIBBON_DEMO_BOOKING_IDS[4],
+                userId: student.id,
+                baseId: kapaBase.id,
+                schedulableResourceId: r44.id,
+                startTime: b5.start,
+                endTime: b5.end,
+                status: client_1.BookingStatus.SCHEDULED,
+                participants: {
+                    create: [
+                        {
+                            userId: student.id,
+                            role: client_1.BookingParticipantRole.RENTER,
+                            organizationId: org.id,
+                        },
+                    ],
+                },
+            },
+        });
+        console.log(`Ribbon demo: 5 bookings on ${RIBBON_TZ} “today” at KAPA (N172SP ×2, N182RG ×2, N44BE ×1 cross-base).`);
+    }
+    else {
+        console.warn('Ribbon demo skipped: missing schedulable resources for N172SP / N182RG / N44BE.');
     }
     console.log('Seed complete.');
 }

@@ -82,9 +82,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;
@@ -158,9 +158,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;
@@ -234,9 +234,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;
@@ -310,9 +310,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;
@@ -386,9 +386,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;
@@ -462,9 +462,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;
@@ -538,9 +538,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;
@@ -614,9 +614,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;
@@ -690,9 +690,9 @@ export declare class BookingService {
         userId: string;
         baseId: string;
         completedAt: Date | null;
-        status: import("@prisma/client").$Enums.BookingStatus;
         startTime: Date;
         endTime: Date;
+        status: import("@prisma/client").$Enums.BookingStatus;
         dispatchedAt: Date | null;
         cancelledAt: Date | null;
         hobbsOut: Prisma.Decimal | null;

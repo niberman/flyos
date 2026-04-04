@@ -5,8 +5,10 @@
  * HTTP surface can be exercised without requiring a live database.
  */
 
+import { join } from 'path';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
@@ -29,9 +31,10 @@ describe('AppController (e2e)', () => {
       .useValue(mockPrisma)
       .compile();
 
-    app = moduleFixture.createNestApplication();
-    // Bind explicitly to loopback so Supertest receives a real listening
-    // server instead of trying to call `.listen()` on our behalf.
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
+    (app as NestExpressApplication).useStaticAssets(
+      join(process.cwd(), 'public'),
+    );
     await app.listen(0, '127.0.0.1');
   });
 
@@ -41,9 +44,9 @@ describe('AppController (e2e)', () => {
       .expect(200)
       .expect('Content-Type', /html/);
 
-    expect(response.text).toContain('FlyOS Scheduler');
+    expect(response.text).toContain('FlyOS');
     expect(response.text).toContain('/scheduler.css');
-    expect(response.text).toContain('/graphql');
+    expect(response.text).toContain('/scheduler.js');
   });
 
   it('/scheduler (GET) serves the ribbon scheduler shell', async () => {
@@ -52,8 +55,48 @@ describe('AppController (e2e)', () => {
       .expect(200)
       .expect('Content-Type', /html/);
 
-    expect(response.text).toContain('FlyOS Scheduler');
+    expect(response.text).toContain('FlyOS');
     expect(response.text).toContain('/scheduler.css');
+  });
+
+  it('/ (GET) includes v0 scheduler UI structure', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/')
+      .expect(200);
+
+    // Sidebar navigation
+    expect(response.text).toContain('class="sidebar"');
+    // Top bar with brand
+    expect(response.text).toContain('class="top-bar"');
+    expect(response.text).toContain('FlyOS');
+    // Timeline header
+    expect(response.text).toContain('id="timeline-header"');
+    // Backend linkage map
+    expect(response.text).toContain('id="backend-map"');
+    // Resource rows container
+    expect(response.text).toContain('id="resource-rows"');
+    // Scroll surface
+    expect(response.text).toContain('id="scroll-surface"');
+    // Base/date controls
+    expect(response.text).toContain('id="select-base"');
+    expect(response.text).toContain('id="input-date"');
+    expect(response.text).toContain('id="btn-load"');
+    // FAB
+    expect(response.text).toContain('id="fab"');
+  });
+
+  it('/scheduler.css (GET) serves the stylesheet', async () => {
+    await request(app.getHttpServer())
+      .get('/scheduler.css')
+      .expect(200)
+      .expect('Content-Type', /css/);
+  });
+
+  it('/scheduler.js (GET) serves the script', async () => {
+    await request(app.getHttpServer())
+      .get('/scheduler.js')
+      .expect(200)
+      .expect('Content-Type', /javascript/);
   });
 
   afterAll(async () => {

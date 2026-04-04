@@ -3,58 +3,112 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>FlyOS Scheduler</title>
+    <title>FlyOS — Fleet Ops</title>
     <link rel="stylesheet" href="/scheduler.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
-  <body class="sched-page">
-    <header class="top-bar top-bar--minimal" aria-label="App">
-      <div class="top-bar__brand">FlyOS</div>
-      <div class="top-bar__right">
-        <a class="top-bar__link" href="/graphql">GraphQL</a>
-      </div>
-    </header>
+  <body>
+    <div class="app-shell">
+      <!-- Sidebar -->
+      <aside class="sidebar" aria-label="Navigation">
+        <nav class="sidebar__nav">
+          <button class="sidebar__btn is-active" data-module-key="board" aria-label="Board" aria-current="page" title="Board">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </button>
+          <button class="sidebar__btn" data-module-key="fleet" aria-label="Fleet" title="Fleet">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+          </button>
+          <button class="sidebar__btn" data-module-key="bookings" aria-label="Bookings" title="Bookings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5V3"/><path d="M17 5V3"/><path d="M3 9h18"/><path d="M7 13h.01"/><path d="M11 13h.01"/><path d="M15 13h.01"/><path d="M7 17h.01"/><path d="M11 17h.01"/></svg>
+          </button>
+          <button class="sidebar__btn" data-module-key="maintenance" aria-label="Maintenance" title="Maintenance">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          </button>
+          <button class="sidebar__btn" data-module-key="compliance" aria-label="Compliance" title="Compliance">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76z"/><path d="m9 12 2 2 4-4"/></svg>
+          </button>
+          <button class="sidebar__btn" data-module-key="users" aria-label="Users and auth" title="Users and auth">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </button>
+        </nav>
+        <button class="sidebar__btn sidebar__btn--bottom" data-module-key="bases" aria-label="Bases" title="Bases">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.33-6-11a6 6 0 1 1 12 0c0 5.67-6 11-6 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        </button>
+      </aside>
 
-    <main class="main-panel main-panel--full">
-      <p class="panel-title">Fleet Ops</p>
-      <h1 class="panel-heading">Ribbon schedule</h1>
-
-      <div class="toolbar">
-        <label>
-          Base
-          <select id="select-base">
-            <option value="">Select a base…</option>
-          </select>
-        </label>
-        <label>
-          Day (local)
-          <input id="input-date" type="date" />
-        </label>
-        <button type="button" id="btn-load">Load</button>
-        <p class="hint">
-          <code>bookingsByBase</code> needs INSTRUCTOR or DISPATCHER. Optional JWT in
-          <code>sessionStorage</code> key <code>flyos_demo_jwt</code> (login via
-          <a href="/graphql">GraphQL</a> <code>login</code>).
-        </p>
-      </div>
-
-      <p id="status-msg" class="status-msg" role="status"></p>
-
-      <div class="schedule-frame">
-        <div class="schedule-sync">
-          <div class="schedule-corner" aria-hidden="true"></div>
-          <div id="schedule-header-scroll" class="schedule-header-scroll">
-            <div id="hour-ruler-inner"></div>
+      <!-- Main content area -->
+      <div class="main-area">
+        <!-- Top header bar -->
+        <header class="top-bar">
+          <div class="top-bar__brand">
+            <span class="top-bar__dot"></span>
+            <span class="top-bar__name">FlyOS</span>
           </div>
-          <div id="labels-col" class="labels-col"></div>
-          <div id="grid-scroll" class="grid-scroll">
-            <div id="grid-scroll-stage" class="grid-scroll-stage">
-              <div id="now-line" class="now-line" style="display: none" aria-hidden="true"></div>
-              <div id="grid-inner"></div>
+          <nav class="top-bar__tabs" aria-label="Main navigation">
+            <button class="top-bar__tab is-active" data-module-key="board" aria-current="page">BOARD</button>
+            <button class="top-bar__tab" data-module-key="fleet">FLEET</button>
+            <button class="top-bar__tab" data-module-key="bookings">BOOKINGS</button>
+            <button class="top-bar__tab" data-module-key="maintenance">MAINTENANCE</button>
+          </nav>
+          <div class="top-bar__right">
+            <div class="top-bar__search-wrap">
+              <svg class="top-bar__search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="input-filter" type="search" class="top-bar__search" placeholder="FILTER LOADED ROWS..." aria-label="Filter loaded rows" />
+            </div>
+            <!-- Base & date selectors (functional) -->
+            <select id="select-base" class="top-bar__select" aria-label="Select base">
+              <option value="">BASE…</option>
+            </select>
+            <input id="input-date" type="date" class="top-bar__date" aria-label="Select date" />
+            <button type="button" id="btn-load" class="top-bar__load-btn">Load</button>
+            <button id="btn-alerts" class="top-bar__icon-btn" aria-label="Alert history" title="Alert history">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            </button>
+            <button id="btn-users" class="top-bar__icon-btn" aria-label="Users and auth" title="Users and auth">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <section id="backend-map" class="backend-map" aria-label="Ribbon backend linkage">
+          <div class="backend-map__meta">
+            <span id="backend-map-badge" class="backend-map__badge">LIVE ON RIBBON</span>
+            <h1 id="backend-map-title" class="backend-map__title">Board</h1>
+            <p id="backend-map-summary" class="backend-map__summary"></p>
+          </div>
+          <div class="backend-map__group">
+            <span class="backend-map__label">Models</span>
+            <div id="backend-map-models" class="backend-map__chips"></div>
+          </div>
+          <div class="backend-map__group">
+            <span class="backend-map__label">GraphQL / Routes</span>
+            <div id="backend-map-ops" class="backend-map__chips"></div>
+          </div>
+        </section>
+
+        <!-- Status message -->
+        <p id="status-msg" class="status-msg" role="status"></p>
+
+        <!-- Scheduler (time ribbon) -->
+        <main id="scheduler" class="scheduler" role="main" aria-label="Fleet Operations Scheduler">
+          <div id="scroll-surface" class="scroll-surface">
+            <div id="canvas-wrapper" class="canvas-wrapper">
+              <!-- Sticky timeline header (built by JS) -->
+              <div id="timeline-header" class="timeline-header"></div>
+              <!-- Resource rows (built by JS) -->
+              <div id="resource-rows" class="resource-rows" role="list" aria-label="Resources and bookings"></div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
-    </main>
+    </div>
+
+    <!-- FAB -->
+    <button id="fab" class="fab" aria-label="Reload board" title="Reload board">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    </button>
 
     <script src="/scheduler.js"></script>
   </body>

@@ -1,11 +1,18 @@
+import { config as loadEnv } from 'dotenv';
+import { resolve } from 'path';
 import { PrismaPg } from '@prisma/adapter-pg';
 import {
   PrismaClient,
   Role,
   AirworthinessStatus,
   SchedulableResourceKind,
+  BookingStatus,
+  BookingParticipantRole,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+
+// ts-node does not load .env; Nest does via @nestjs/config.
+loadEnv({ path: resolve(__dirname, '..', '.env') });
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -14,6 +21,85 @@ if (!DATABASE_URL) {
 
 const adapter = new PrismaPg(DATABASE_URL);
 const prisma = new PrismaClient({ adapter });
+
+const RIBBON_TZ = 'America/Denver';
+
+/** Calendar Y-M-D in a specific IANA zone (matches seeded bases). */
+function getZonedYMD(timeZone: string, instant: Date) {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = fmt.formatToParts(instant);
+  const n = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  return { y: n('year'), m: n('month'), d: n('day') };
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+/** Wall-clock time in `timeZone` → UTC Date (for seeding ribbon demo blocks). */
+function zonedWallToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone: string,
+): Date {
+  const target = `${year}-${pad2(month)}-${pad2(day)} ${pad2(hour)}:${pad2(minute)}`;
+  const fmt = new Intl.DateTimeFormat('sv-SE', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  let lo = Date.UTC(year, month - 1, day - 1, 12, 0, 0);
+  let hi = Date.UTC(year, month - 1, day + 1, 12, 0, 0);
+  for (let i = 0; i < 56; i++) {
+    const mid = Math.floor((lo + hi) / 2);
+    const got = fmt.format(new Date(mid));
+    if (got === target) {
+      return new Date(mid);
+    }
+    if (got < target) {
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  throw new Error(
+    `zonedWallToUtc: could not resolve ${target} in ${timeZone} (DST gap?)`,
+  );
+}
+
+/** Demo slots on “today” in America/Denver (stable when seed runs in Docker/UTC). */
+function denverTodaySlot(
+  hourStart: number,
+  minuteStart: number,
+  hourEnd: number,
+  minuteEnd: number,
+): { start: Date; end: Date } {
+  const { y, m, d } = getZonedYMD(RIBBON_TZ, new Date());
+  return {
+    start: zonedWallToUtc(y, m, d, hourStart, minuteStart, RIBBON_TZ),
+    end: zonedWallToUtc(y, m, d, hourEnd, minuteEnd, RIBBON_TZ),
+  };
+}
+
+const RIBBON_DEMO_BOOKING_IDS = [
+  'f0000001-0000-4000-8000-000000000001',
+  'f0000002-0000-4000-8000-000000000002',
+  'f0000003-0000-4000-8000-000000000003',
+  'f0000004-0000-4000-8000-000000000004',
+  'f0000005-0000-4000-8000-000000000005',
+] as const;
 
 async function main() {
   console.log('Seeding FlyOS database...');
@@ -252,6 +338,156 @@ async function main() {
         },
       });
     }
+  }
+
+  // --- Ribbon scheduler demo bookings (Centennial / KAPA + cross-base row) ---
+  await prisma.booking.deleteMany({
+    where: { id: { in: [...RIBBON_DEMO_BOOKING_IDS] } },
+  });
+
+  const ribbonAircraft = await prisma.aircraft.findMany({
+    where: {
+      organizationId: org.id,
+      tailNumber: { in: ['N172SP', 'N182RG', 'N44BE'] },
+    },
+    include: { schedulableResource: true },
+  });
+  const resourceByTail = Object.fromEntries(
+    ribbonAircraft.map((a) => [a.tailNumber, a.schedulableResource]),
+  );
+
+  const r172 = resourceByTail['N172SP'];
+  const r182 = resourceByTail['N182RG'];
+  const r44 = resourceByTail['N44BE'];
+
+  if (r172 && r182 && r44) {
+    const b1 = denverTodaySlot(8, 0, 9, 30);
+    const b2 = denverTodaySlot(14, 0, 16, 0);
+    const b3 = denverTodaySlot(10, 0, 11, 30);
+    const b4 = denverTodaySlot(17, 0, 18, 0);
+    const b5 = denverTodaySlot(12, 0, 13, 0);
+
+    await prisma.booking.create({
+      data: {
+        id: RIBBON_DEMO_BOOKING_IDS[0],
+        userId: student.id,
+        baseId: kapaBase.id,
+        schedulableResourceId: r172.id,
+        startTime: b1.start,
+        endTime: b1.end,
+        status: BookingStatus.SCHEDULED,
+        participants: {
+          create: [
+            {
+              userId: student.id,
+              role: BookingParticipantRole.RENTER,
+              organizationId: org.id,
+            },
+          ],
+        },
+      },
+    });
+
+    await prisma.booking.create({
+      data: {
+        id: RIBBON_DEMO_BOOKING_IDS[1],
+        userId: student.id,
+        baseId: kapaBase.id,
+        schedulableResourceId: r172.id,
+        startTime: b2.start,
+        endTime: b2.end,
+        status: BookingStatus.DISPATCHED,
+        dispatchedAt: b2.start,
+        participants: {
+          create: [
+            {
+              userId: student.id,
+              role: BookingParticipantRole.RENTER,
+              organizationId: org.id,
+            },
+            {
+              userId: instructor.id,
+              role: BookingParticipantRole.INSTRUCTOR,
+              organizationId: org.id,
+            },
+          ],
+        },
+      },
+    });
+
+    await prisma.booking.create({
+      data: {
+        id: RIBBON_DEMO_BOOKING_IDS[2],
+        userId: student.id,
+        baseId: kapaBase.id,
+        schedulableResourceId: r182.id,
+        startTime: b3.start,
+        endTime: b3.end,
+        status: BookingStatus.IN_PROGRESS,
+        dispatchedAt: b3.start,
+        participants: {
+          create: [
+            {
+              userId: student.id,
+              role: BookingParticipantRole.RENTER,
+              organizationId: org.id,
+            },
+          ],
+        },
+      },
+    });
+
+    await prisma.booking.create({
+      data: {
+        id: RIBBON_DEMO_BOOKING_IDS[3],
+        userId: student.id,
+        baseId: kapaBase.id,
+        schedulableResourceId: r182.id,
+        startTime: b4.start,
+        endTime: b4.end,
+        status: BookingStatus.COMPLETED,
+        dispatchedAt: b4.start,
+        completedAt: b4.end,
+        participants: {
+          create: [
+            {
+              userId: student.id,
+              role: BookingParticipantRole.RENTER,
+              organizationId: org.id,
+            },
+          ],
+        },
+      },
+    });
+
+    await prisma.booking.create({
+      data: {
+        id: RIBBON_DEMO_BOOKING_IDS[4],
+        userId: student.id,
+        baseId: kapaBase.id,
+        schedulableResourceId: r44.id,
+        startTime: b5.start,
+        endTime: b5.end,
+        status: BookingStatus.SCHEDULED,
+        participants: {
+          create: [
+            {
+              userId: student.id,
+              role: BookingParticipantRole.RENTER,
+              organizationId: org.id,
+            },
+          ],
+        },
+      },
+    });
+
+    console.log(
+      `Ribbon demo: 5 bookings on ${RIBBON_TZ} “today” at KAPA (N172SP ×2, N182RG ×2, N44BE ×1 cross-base).`,
+    );
+  } else {
+    console.warn(
+      'Ribbon demo skipped: missing schedulable resources for N172SP / N182RG / N44BE.',
+    );
   }
 
   console.log('Seed complete.');
